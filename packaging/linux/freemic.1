@@ -1,0 +1,67 @@
+.TH FREEMIC 1 "2026-10-29" "FreeMic 0.1.0" "User Commands"
+.SH NAME
+freemic \- soundboard and virtual microphone
+.SH SYNOPSIS
+.B freemic
+[\fB\-\-minimized\fR]
+.br
+.B freemic
+\fB\-\-play\fR \fINAME\fR|\fB#\fR\fIN\fR | \fB\-\-stop\fR | \fB\-\-quit\fR
+.br
+.B freemic
+\fB\-\-help\fR | \fB\-\-version\fR
+.SH DESCRIPTION
+FreeMic mixes your microphone with sound clips from a button grid and sends
+the result to a virtual microphone named
+.B "FreeMic Virtual Microphone"
+that other programs (voice chat, games, recording software) can select.
+The virtual microphone is created through PulseAudio or PipeWire
+(pipewire-pulse) while FreeMic runs and is removed when it exits.
+FreeMic never changes the default input or output device and plays nothing
+to your speakers unless monitoring is enabled in its settings.
+.PP
+Without options FreeMic opens its window. Only one instance runs per user;
+the command options below control the running instance.
+.SH OPTIONS
+.TP
+.B \-\-minimized
+Start with the window minimized.
+.TP
+.BI \-\-play " NAME" "\fR|\fP#" N
+Play the sound called \fINAME\fR (case-insensitive), or the \fIN\fRth button.
+If that sound is already playing it is stopped. Useful for keyboard shortcuts
+on Wayland, where applications cannot register global hotkeys.
+.TP
+.B \-\-stop
+Stop the soundboard (the microphone keeps working).
+.TP
+.B \-\-quit
+Close the running FreeMic.
+.TP
+.B \-\-help
+Show a short help text.
+.TP
+.B \-\-version
+Print the version.
+.SH EXIT STATUS
+0 on success; 1 if FreeMic is not running or the sound was not found.
+.SH FILES
+.TP
+.I ~/.config/freemic/
+settings.json and soundboard.json.
+.TP
+.I ~/.local/share/freemic/
+Imported sounds (sounds/) and the log file freemic.log.
+.TP
+.I portable.txt
+If this file (or a data directory) exists next to the program, all data is
+kept in the data directory there instead.
+.SH ENVIRONMENT
+.TP
+.B FREEMIC_STATS=1
+Log microphone buffer and drift statistics (for bug reports).
+.SH SEE ALSO
+.BR pactl (1),
+.BR pavucontrol (1)
+.PP
+/usr/share/doc/freemic/

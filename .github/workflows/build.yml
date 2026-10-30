@@ -1,0 +1,116 @@
+# Builds and tests FreeMic on Windows, Debian 12 and Arch Linux on every push.
+# Pushing a tag like v0.1.0 also publishes a GitHub release with all packages.
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rust toolchain
+        run: rustup toolchain install stable --profile minimal && rustup default stable
+      - name: Inno Setup
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) {
+            choco install innosetup -y --no-progress
+          }
+      - name: Test
+        run: cargo test --release --locked
+      - name: Build installer and portable zip
+        shell: powershell
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File packaging\windows\build.ps1
+      # (test_portable.ps1 opens FreeMic's window, which needs OpenGL 2+; hosted runners
+      # only have the basic display driver, so that test runs on real machines only.)
+      - name: Test installer (silent install, uninstall, no VB-CABLE download when silent)
+        shell: powershell
+        run: |
+          powershell -NoProfile -ExecutionPolicy Bypass -File tools\windows\test_installer.ps1
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: |
+            dist/*.exe
+            dist/*.zip
+          if-no-files-found: error
+
+  # Built on Debian 12 (glibc 2.36) so the binary runs on Debian 12+, Ubuntu 22.04+ and Arch.
+  linux:
+    runs-on: ubuntu-latest
+    container: debian:bookworm
+    steps:
+      - name: Build dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends build-essential pkg-config libpulse-dev curl ca-certificates git xz-utils dpkg-dev
+      - uses: actions/checkout@v4
+      - name: Rust toolchain
+        run: |
+          curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+      - name: Test
+        run: cargo test --release --locked
+      - name: Build .deb, portable archive and Arch source package
+        run: bash packaging/linux/build.sh
+      - name: Check glibc requirement
+        run: objdump -T target/release/freemic | grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: dist/linux/*
+          if-no-files-found: error
+
+  arch:
+    needs: linux
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    steps:
+      - name: Build dependencies
+        run: |
+          pacman -Syu --noconfirm --needed base-devel rust namcap \
+            libpulse libx11 libxcursor libxi libxkbcommon libxkbcommon-x11 libglvnd wayland hicolor-icon-theme
+          useradd -m builder
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux
+          path: pkg
+      - name: makepkg (builds from the source tarball and runs the tests)
+        run: |
+          chown -R builder pkg
+          su builder -c 'cd pkg && makepkg -f --noconfirm'
+          namcap pkg/freemic-[0-9]*.pkg.tar.zst || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: arch
+          path: pkg/freemic-[0-9]*.pkg.tar.zst
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [windows, linux, arch]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: assets
+          merge-multiple: true
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ls -l assets
+          gh release create "$GITHUB_REF_NAME" assets/* --title "FreeMic ${GITHUB_REF_NAME#v}" --notes-file .github/release-notes.md

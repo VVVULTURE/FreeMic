@@ -1,0 +1,10 @@
+* text=auto eol=lf
+*.iss text eol=crlf
+*.ps1 text eol=crlf
+*.wav binary
+*.mp3 binary
+*.ogg binary
+*.flac binary
+*.m4a binary
+*.png binary
+*.ico binary

@@ -1,0 +1,52 @@
+# Maintainer: Vaden
+# Builds FreeMic from the source tarball made by packaging/linux/build.sh.
+# libX11, libXcursor, libXi, libxkbcommon(-x11), libglvnd and wayland are loaded at
+# run time with dlopen, so namcap reports them as "may not be needed"; they are.
+pkgname=freemic
+pkgver=0.1.0
+pkgrel=1
+pkgdesc='Lightweight soundboard and virtual microphone (mixes your microphone with sounds)'
+arch=('x86_64')
+url='https://github.com/VVVULTURE/FreeMic'
+license=('MIT')
+depends=('glibc' 'libgcc' 'hicolor-icon-theme' 'libpulse' 'libx11' 'libxcursor' 'libxi' 'libxkbcommon' 'libxkbcommon-x11' 'libglvnd' 'wayland')
+makedepends=('cargo')
+optdepends=('pipewire-pulse: needed on PipeWire systems (FreeMic talks the PulseAudio protocol)'
+            'pulseaudio: alternative sound server')
+options=('!lto' '!debug')  # cargo already strips the binary
+source=("freemic-$pkgver.tar.gz")
+sha256sums=('@SHA256@')
+
+prepare() {
+  cd "freemic-$pkgver"
+  export RUSTUP_TOOLCHAIN=stable
+  cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+}
+
+build() {
+  cd "freemic-$pkgver"
+  export RUSTUP_TOOLCHAIN=stable CARGO_TARGET_DIR=target
+  cargo build --frozen --release --bin freemic
+}
+
+check() {
+  cd "freemic-$pkgver"
+  export RUSTUP_TOOLCHAIN=stable CARGO_TARGET_DIR=target
+  cargo test --frozen --release
+}
+
+package() {
+  cd "freemic-$pkgver"
+  install -Dm755 target/release/freemic "$pkgdir/usr/bin/freemic"
+  install -Dm644 packaging/linux/freemic.desktop "$pkgdir/usr/share/applications/freemic.desktop"
+  install -Dm644 packaging/linux/freemic.1 "$pkgdir/usr/share/man/man1/freemic.1"
+  for s in 16 24 32 48 64 128 256; do
+    install -Dm644 "packaging/assets/freemic-$s.png" "$pkgdir/usr/share/icons/hicolor/${s}x${s}/apps/freemic.png"
+  done
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  install -Dm644 THIRD-PARTY-NOTICES.md "$pkgdir/usr/share/licenses/$pkgname/THIRD-PARTY-NOTICES.md"
+  install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
+  for f in docs/*.md docs/images/*.png; do  # user documentation (the development work log stays out)
+    [ "$(basename "$f")" = WORKLOG.md ] || install -Dm644 "$f" "$pkgdir/usr/share/doc/$pkgname/$f"
+  done
+}

@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=FreeMic
+GenericName=Soundboard
+Comment=Soundboard and virtual microphone
+Exec=freemic
+Icon=freemic
+Terminal=false
+Categories=AudioVideo;Audio;
+Keywords=soundboard;microphone;mic;virtual;discord;
+StartupWMClass=freemic
