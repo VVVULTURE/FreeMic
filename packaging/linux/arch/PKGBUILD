@@ -3,7 +3,7 @@
 # libX11, libXcursor, libXi, libxkbcommon(-x11), libglvnd and wayland are loaded at
 # run time with dlopen, so namcap reports them as "may not be needed"; they are.
 pkgname=freemic
-pkgver=0.2.0
+pkgver=0.2.1
 pkgrel=1
 pkgdesc='Lightweight soundboard and virtual microphone (mixes your microphone with sounds)'
 arch=('x86_64')

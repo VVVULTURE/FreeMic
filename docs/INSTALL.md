@@ -17,21 +17,23 @@ Windows 10 and Ubuntu 22.04+ should work (same APIs; Ubuntu 22.04 has glibc
 
 ## Windows installer
 
-1. Run `FreeMic-0.2.0-windows-setup.exe`. It installs for your user account
+1. Run `FreeMic-0.2.1-windows-setup.exe`. It installs for your user account
    only (into `%LOCALAPPDATA%\Programs\FreeMic`) and doesn't need
-   administrator rights.
-2. If no VB-CABLE driver is found, the installer offers a checkbox:
-   **Download and install the free VB-CABLE virtual audio driver**. If you
-   tick it, the installer downloads VB-Audio's official package from
-   vb-audio.com, checks that it's signed by VB-Audio, and starts VB-Audio's
-   setup. Windows asks for administrator approval; click **Install Driver**.
-   Restart Windows if VB-Audio's setup asks you to.
+   administrator rights. It contains FreeMic and yt-dlp (for the YouTube
+   page); nothing is downloaded during setup.
+   FreeMic isn't code-signed, so Windows SmartScreen may show "Windows
+   protected your PC" for a new download: **More info** → **Run anyway**.
+2. If no VB-CABLE driver is found, the last page has a checkbox **Open the
+   VB-CABLE web page**. Install VB-CABLE from there with VB-Audio's own
+   installer (see [Windows: VB-CABLE](#windows-vb-cable)).
 3. Start FreeMic from the Start menu.
 
+Upgrading: run the new installer; your soundboard and settings are kept.
+
 Silent install (IT/scripts):
-`FreeMic-0.2.0-windows-setup.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART`
-(add `/DIR="C:\path"` to choose the folder). Silent installs never download
-VB-CABLE.
+`FreeMic-0.2.1-windows-setup.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART`
+(add `/DIR="C:\path"` to choose the folder). Silent installs don't open the
+web page.
 
 ### Uninstall
 
@@ -48,8 +50,8 @@ FreeMic → **Uninstall FreeMic**. The uninstaller:
 
 ## Windows portable
 
-1. Extract `FreeMic-0.2.0-windows-portable.zip` anywhere, including a USB
-   stick.
+1. Extract `FreeMic-0.2.1-windows-portable.zip` anywhere, including a USB
+   stick. Keep `yt-dlp.exe` next to `FreeMic.exe` (the YouTube page uses it).
 2. Run `FreeMic.exe`.
 
 The included `portable.txt` keeps all settings, the soundboard and imported
@@ -59,8 +61,7 @@ setting, which has to live in the registry.
 
 **The portable version still needs VB-CABLE.** A driver can't be "portable":
 installing one always needs administrator approval on each PC. **Settings →
-Download and install VB-CABLE…** runs the same checked download as the
-installer.
+Open the VB-CABLE page** takes you to VB-Audio's download.
 
 To remove the portable version: if you turned on "Start FreeMic when I sign
 in", turn it off first. Then delete the folder. Nothing else is left behind.
@@ -70,12 +71,15 @@ in", turn it off first. Then delete the folder. Nothing else is left behind.
 FreeMic plays the mix into **CABLE Input**, and VB-CABLE presents it as the
 microphone **CABLE Output (VB-Audio Virtual Cable)**.
 
-Manual installation (instead of the button):
+FreeMic doesn't download or start driver installers itself (that needs your
+administrator approval, in VB-Audio's own installer). To install VB-CABLE:
 
-1. Download `VBCABLE_Driver_Pack45.zip` from <https://vb-audio.com/Cable/>.
+1. Open <https://vb-audio.com/Cable/> (Settings → **Open the VB-CABLE page**)
+   and download the Windows package (a zip, e.g. `VBCABLE_Driver_Pack45.zip`).
 2. Extract it, right-click `VBCABLE_Setup_x64.exe` → **Run as administrator**
    → **Install Driver**.
-3. Restart Windows if asked, then in FreeMic click **Re-check devices**.
+3. Restart Windows if asked. FreeMic checks for the device every 3 seconds
+   and starts using it by itself (**Re-check devices** checks right away).
 
 FreeMic never changes your Windows default microphone or speakers. Leave them
 as they are. In particular, **don't** make "CABLE Input" your default output,
@@ -94,7 +98,7 @@ be chosen by hand under **Settings → Send the mix to**.
 ## Debian / Ubuntu
 
 ```sh
-sudo apt install ./freemic_0.2.0-1_amd64.deb
+sudo apt install ./freemic_0.2.1-1_amd64.deb
 ```
 
 `apt` installs the needed libraries (libpulse0, X11/Wayland and GL
@@ -116,10 +120,10 @@ rm -rf ~/.config/freemic ~/.local/share/freemic ~/.config/autostart/freemic.desk
 Prebuilt package from the release page:
 
 ```sh
-sudo pacman -U freemic-0.2.0-1-x86_64.pkg.tar.zst
+sudo pacman -U freemic-0.2.1-1-x86_64.pkg.tar.zst
 ```
 
-Or build it yourself: put `PKGBUILD` and `freemic-0.2.0.tar.gz` in one folder and run:
+Or build it yourself: put `PKGBUILD` and `freemic-0.2.1.tar.gz` in one folder and run:
 
 ```sh
 makepkg -si
@@ -135,8 +139,8 @@ Uninstall: `sudo pacman -R freemic`, then optionally
 ## Linux portable
 
 ```sh
-tar xzf freemic-0.2.0-linux-x86_64.tar.gz
-cd freemic-0.2.0-linux-x86_64
+tar xzf freemic-0.2.1-linux-x86_64.tar.gz
+cd freemic-0.2.1-linux-x86_64
 ./freemic
 ```
 
@@ -164,15 +168,19 @@ pactl unload-module <number>                      # for each line
 
 ## Where FreeMic stores data
 
-| | Settings (`settings.json`, `soundboard.json`) | Sounds (`sounds/`, YouTube audio in `sounds/youtube/`), yt-dlp (`tools/`) and `freemic.log` |
+| | Settings (`settings.json`, `soundboard.json`) | Sounds (`sounds/`, YouTube audio in `sounds/youtube/`), `tools/` and `freemic.log` |
 |---|---|---|
 | Windows (installed) | `%APPDATA%\FreeMic` | `%APPDATA%\FreeMic` |
 | Linux (installed) | `~/.config/freemic` | `~/.local/share/freemic` |
 | Portable (`portable.txt` or a `data` folder next to the program) | `data\` | `data\` |
 
-yt-dlp (`tools/yt-dlp.exe` on Windows, `tools/yt-dlp_linux` on Linux) is only
-there if you used the YouTube page; removing FreeMic's data folder removes it
-too. **Settings → YouTube downloads → Remove yt-dlp** deletes it on its own.
+`tools/yt-dlp.json` remembers when FreeMic last looked for a newer yt-dlp.
+On **Windows**, yt-dlp itself (`yt-dlp.exe`) is part of FreeMic and sits next
+to `FreeMic.exe`; uninstalling FreeMic removes it. (FreeMic 0.2.0 had
+downloaded it into `tools\yt-dlp.exe`; 0.2.1 deletes that copy.) On
+**Linux**, yt-dlp is downloaded into `tools/yt-dlp_linux` the first time you
+use the YouTube page; removing FreeMic's data folder removes it too, and
+**Settings → YouTube downloads → Remove yt-dlp** deletes it on its own.
 
 If a settings file is damaged, FreeMic renames it to
 `*.damaged-<time>.json`, starts with defaults and tells you.

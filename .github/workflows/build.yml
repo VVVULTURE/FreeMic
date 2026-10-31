@@ -32,7 +32,7 @@ jobs:
         run: powershell -NoProfile -ExecutionPolicy Bypass -File packaging\windows\build.ps1
       # (test_portable.ps1 opens FreeMic's window, which needs OpenGL 2+; hosted runners
       # only have the basic display driver, so that test runs on real machines only.)
-      - name: Test installer (silent install, uninstall, no VB-CABLE download when silent)
+      - name: Test installer (silent install with bundled yt-dlp, uninstall)
         shell: powershell
         run: |
           powershell -NoProfile -ExecutionPolicy Bypass -File tools\windows\test_installer.ps1

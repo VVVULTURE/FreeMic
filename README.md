@@ -7,7 +7,7 @@ microphone, and people hear your voice and your sounds together.
 
 - Windows 11 and 10 (64-bit), Debian/Ubuntu and Arch Linux (x86-64);
   tested on Windows 11, Debian 12/13 and Arch (see [docs/TESTING.md](docs/TESTING.md))
-- One small native program (Rust); measured 0.02–0.34 % of total CPU while running
+- One small native program (Rust); measured 0.04–0.38 % of total CPU while running
 - Free and open source (MIT)
 
 ![FreeMic main window](docs/images/main-window.png)
@@ -20,8 +20,9 @@ microphone, and people hear your voice and your sounds together.
   page and add the audio of one video to the board. Music search works like
   [YT-Downloader](https://github.com/VVVULTURE/YT-Downloader). The audio is
   stored locally; playlists are never downloaded. Uses
-  [yt-dlp](https://github.com/yt-dlp/yt-dlp), fetched from its official
-  releases on first use and checked against its published SHA-256.
+  [yt-dlp](https://github.com/yt-dlp/yt-dlp): on Windows the official build
+  comes with FreeMic; on Linux it is fetched from yt-dlp's releases on first
+  use and checked against its published SHA-256.
 - Click a button to play it, and click it again to stop it. **Stop** (or a
   hotkey) stops everything.
 - Only one sound plays at a time. Starting a new sound replaces the current
@@ -53,11 +54,13 @@ microphone, and people hear your voice and your sounds together.
 
 Windows only lets kernel drivers create microphones, and an unsigned driver
 won't load, so FreeMic can't create one itself. It uses VB-CABLE and finds it
-automatically. VB-CABLE isn't bundled (its license doesn't allow
-redistribution). The installer, or **Settings → Download and install
-VB-CABLE…**, downloads it from vb-audio.com, checks its digital signature and
-starts VB-Audio's own installer, which asks for administrator approval. See
-[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the details.
+automatically (it checks every few seconds, so no restart of FreeMic is
+needed). VB-CABLE isn't bundled (its license doesn't allow redistribution),
+and FreeMic never downloads or starts a driver installer itself: the
+installer's last page and **Settings → Open the VB-CABLE page** open
+vb-audio.com, and you run VB-Audio's own installer, which asks for
+administrator approval. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for
+the details.
 
 ## Install
 
@@ -66,11 +69,11 @@ Download the file for your system from the
 
 | Platform | Download | Notes |
 |---|---|---|
-| Windows | `FreeMic-0.2.0-windows-setup.exe` | Per-user install, no admin needed for FreeMic itself. Can also set up VB-CABLE. |
-| Windows portable | `FreeMic-0.2.0-windows-portable.zip` | Unzip and run `FreeMic.exe`. Settings stay in the folder. VB-CABLE still has to be installed separately. |
-| Debian 12+ / Ubuntu 22.04+ | `freemic_0.2.0-1_amd64.deb` | `sudo apt install ./freemic_0.2.0-1_amd64.deb` (tested on Debian 12 and 13) |
-| Arch Linux | `PKGBUILD` + `freemic-0.2.0.tar.gz` | `makepkg -si` in the folder with both files |
-| Linux portable | `freemic-0.2.0-linux-x86_64.tar.gz` | Extract and run `./freemic` (glibc 2.35 or newer). |
+| Windows | `FreeMic-0.2.1-windows-setup.exe` | Per-user install, no admin needed for FreeMic itself. Includes yt-dlp. Opens the VB-CABLE page if the driver is missing. |
+| Windows portable | `FreeMic-0.2.1-windows-portable.zip` | Unzip and run `FreeMic.exe`. Settings stay in the folder. VB-CABLE still has to be installed separately. |
+| Debian 12+ / Ubuntu 22.04+ | `freemic_0.2.1-1_amd64.deb` | `sudo apt install ./freemic_0.2.1-1_amd64.deb` (tested on Debian 12 and 13) |
+| Arch Linux | `PKGBUILD` + `freemic-0.2.1.tar.gz` | `makepkg -si` in the folder with both files |
+| Linux portable | `freemic-0.2.1-linux-x86_64.tar.gz` | Extract and run `./freemic` (glibc 2.35 or newer). |
 
 Step-by-step instructions, uninstalling and cleanup are in
 [docs/INSTALL.md](docs/INSTALL.md).
@@ -111,13 +114,41 @@ Windows, Unix socket on Linux; local user only).
 - On Linux the virtual microphone exists only while FreeMic runs. If FreeMic
   crashes, the leftover devices are removed the next time it starts.
 - One sound at a time, by design.
-- The YouTube page needs an internet connection, downloads yt-dlp (about
-  24 MB on Windows, 41 MB on Linux) the first time, and saves YouTube's AAC
-  audio as is (no conversion). Videos without an AAC stream can't be added.
-  YouTube occasionally blocks automated downloads; FreeMic retries with other
-  player clients and keeps yt-dlp up to date.
+- The YouTube page needs an internet connection (on Linux it also downloads
+  yt-dlp, 41 MB, the first time) and saves YouTube's AAC audio as is (no
+  conversion). Videos without an AAC stream can't be added. YouTube
+  occasionally blocks automated downloads; FreeMic retries with other player
+  clients and tells you when a newer yt-dlp is available (**Update yt-dlp**).
+- FreeMic's Windows files are not code-signed (a certificate costs money), so
+  Windows SmartScreen may say it doesn't recognize the app the first time.
 
 Also see [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md).
+
+## Security and antivirus
+
+FreeMic 0.2.0 was flagged by Microsoft Defender as `Trojan:Win32/Bearfoos.B!ml`
+(a machine-learning detection, not a known virus) at the moment it saved the
+yt-dlp program it had downloaded. Since 0.2.1 FreeMic does none of the things
+that look like malware:
+
+- It never downloads, writes or starts program files. On Windows yt-dlp comes
+  with FreeMic; updates are done by yt-dlp's own updater, only when you click
+  **Update yt-dlp**.
+- It never runs PowerShell or scripts, never asks for administrator rights
+  (its manifest says so), and doesn't download or start driver installers.
+- It installs no keyboard hook and doesn't log keys: hotkeys use the
+  standard `RegisterHotKey` (Windows) / X11 key grabs for the combinations you
+  set; when one fires, only that key is checked for being released.
+- It only starts yt-dlp (to search and download audio) and, when you click a
+  link, your browser or file manager. It stops yt-dlp with a Windows job
+  object, so it never kills other programs.
+- It connects to GitHub (yt-dlp releases, update checks, only when you use the
+  YouTube page) and to YouTube through yt-dlp. Nothing else, no telemetry.
+
+The 0.2.1 build was scanned with Microsoft Defender and exercised (search,
+download, update) with no detection; see [docs/TESTING.md](docs/TESTING.md).
+If an antivirus still complains, please don't turn it off: report the file as
+a false positive (see [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)).
 
 ## Documentation
 

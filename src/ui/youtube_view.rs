@@ -52,6 +52,16 @@ impl FreeMicApp {
         for f in finished {
             self.yt_add(&f.video, &f.path);
         }
+        if let Some(id) = &self.test_yt_add {
+            let found = {
+                let st = self.yt.state.lock().unwrap();
+                if st.busy.is_none() { st.results.iter().find(|v| &v.id == id).cloned() } else { None }
+            };
+            if let Some(v) = found {
+                self.test_yt_add = None;
+                self.yt_download(&v);
+            }
+        }
     }
 
     fn yt_add(&mut self, v: &Video, path: &std::path::Path) {
@@ -116,9 +126,18 @@ impl FreeMicApp {
         }
     }
 
+    /// Look for a newer yt-dlp once per run, when YouTube features are first shown.
+    fn yt_quiet_check(&mut self) {
+        if !self.yt_checked && self.yt.state.lock().unwrap().tool.is_some() {
+            self.yt_checked = true;
+            self.yt.send(Job::Check { force: false });
+        }
+    }
+
     pub(super) fn youtube_view(&mut self, ui: &mut egui::Ui) {
+        self.yt_quiet_check();
         let p = *theme::pal(ui);
-        egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
+        egui::ScrollArea::vertical().id_salt("youtube_scroll").auto_shrink([false, false]).show(ui, |ui| {
             let avail = ui.available_width();
             let w = (avail - 12.0).min(760.0);
             ui.horizontal(|ui| {
@@ -151,6 +170,26 @@ impl FreeMicApp {
         if tool.is_none() && busy.is_none() {
             self.youtube_setup_card(ui, p, error.as_deref());
             return;
+        }
+        if let Some(t) = &tool {
+            if let Some(latest) = t.update() {
+                let latest = latest.to_string();
+                egui::Frame::new().fill(p.raised).corner_radius(10).inner_margin(Margin::symmetric(14, 10)).show(ui, |ui| {
+                    ui.set_width(ui.available_width());
+                    ui.add(
+                        egui::Label::new(
+                            RichText::new(format!("A newer yt-dlp is available ({latest}; you have {}). YouTube changes often, so updating fixes most download problems.", t.version))
+                                .color(p.text),
+                        )
+                        .wrap(),
+                    );
+                    ui.add_enabled_ui(busy.is_none(), |ui| {
+                        if widgets::button(ui, Kind::Secondary, Some(Icon::Download), "Update yt-dlp").clicked() {
+                            self.yt.send(Job::Update);
+                        }
+                    });
+                });
+            }
         }
 
         // ---- search form
@@ -222,6 +261,8 @@ impl FreeMicApp {
         if let Some(b) = &busy {
             let text = match b {
                 Busy::Setup => "Getting yt-dlp ready…".to_string(),
+                Busy::Check => "Looking for a newer yt-dlp…".to_string(),
+                Busy::Update => "Updating yt-dlp…".to_string(),
                 Busy::Search => "Searching YouTube…".to_string(),
                 Busy::Lookup => "Looking up the video…".to_string(),
                 Busy::Download(id) => {
@@ -229,16 +270,18 @@ impl FreeMicApp {
                     format!("Downloading \"{t}\"…")
                 }
             };
+            // Stopping yt-dlp halfway through replacing itself could break it.
+            let can_cancel = !(self.yt.bundled && *b == Busy::Update);
             egui::Frame::new().fill(p.raised).corner_radius(10).inner_margin(Margin::symmetric(14, 10)).show(ui, |ui| {
                 ui.set_width(ui.available_width());
                 ui.horizontal(|ui| {
                     ui.add(egui::Spinner::new().size(16.0).color(p.accent));
-                    let cancel_w = 13.0 * 2.0 + widgets::text_width(ui, "Cancel", theme::font_bold(13.5));
+                    let cancel_w = if can_cancel { 13.0 * 2.0 + widgets::text_width(ui, "Cancel", theme::font_bold(13.5)) } else { 0.0 };
                     let tw = (ui.available_width() - cancel_w - 12.0).max(40.0);
                     let g = widgets::one_line(ui, &text, theme::font(14.0), p.text, tw);
                     let (r, _) = ui.allocate_exact_size(vec2(tw, 20.0), Sense::hover());
                     ui.painter().galley(pos2(r.left(), r.center().y - g.size().y / 2.0), g, p.text);
-                    if widgets::button(ui, Kind::Ghost, None, "Cancel").clicked() {
+                    if can_cancel && widgets::button(ui, Kind::Ghost, None, "Cancel").clicked() {
                         self.yt.cancel();
                     }
                 });
@@ -306,6 +349,24 @@ impl FreeMicApp {
     }
 
     fn youtube_setup_card(&mut self, ui: &mut egui::Ui, p: &Palette, error: Option<&str>) {
+        if self.yt.bundled {
+            // Windows: yt-dlp comes with FreeMic, so it can only be missing if FreeMic's folder was changed.
+            let missing = self.yt.missing.clone();
+            widgets::card(ui, "yt-dlp is missing", None, |ui| {
+                ui.add(
+                    egui::Label::new(
+                        RichText::new("FreeMic uses yt-dlp, the free and open-source downloader that YT-Downloader is built on. It comes with FreeMic, but it can't be found.")
+                            .color(p.dim),
+                    )
+                    .wrap(),
+                );
+                widgets::status_line(ui, p.bad, missing);
+                if let Some(e) = error {
+                    widgets::status_line(ui, p.bad, e.to_string());
+                }
+            });
+            return;
+        }
         widgets::card(ui, "Set up YouTube downloads", None, |ui| {
             ui.add(
                 egui::Label::new(
@@ -314,26 +375,27 @@ impl FreeMicApp {
                 )
                 .wrap(),
             );
-            #[cfg(windows)]
-            let size = "about 24 MB";
-            #[cfg(not(windows))]
-            let size = "about 41 MB";
-            widgets::hint(ui, format!("Download size {size}. FreeMic looks for a newer yt-dlp at most every 6 hours, and only while you use YouTube features."));
+            widgets::hint(ui, "Download size about 41 MB. FreeMic looks for a newer yt-dlp at most every 6 hours, only while you use YouTube features, and installs it only when you click Update.");
             if let Some(e) = error {
                 widgets::status_line(ui, p.bad, e.to_string());
             }
             if widgets::button(ui, Kind::Primary, Some(Icon::Download), "Set up YouTube downloads").clicked() {
-                self.yt.send(Job::Setup { force: false });
+                self.yt.send(Job::Setup);
             }
         });
     }
 
     /// Card in Settings.
     pub(super) fn youtube_settings_card(&mut self, ui: &mut egui::Ui, p: &Palette) {
+        self.yt_quiet_check();
         let (tool, busy) = {
             let st = self.yt.state.lock().unwrap();
             (st.tool.clone(), st.busy.clone())
         };
+        if self.test_show_yt_card {
+            let top = ui.cursor().top();
+            ui.scroll_to_rect(Rect::from_x_y_ranges(ui.max_rect().x_range(), top..=top + 60.0), Some(Align::Min));
+        }
         widgets::card(ui, "YouTube downloads", Some("yt-dlp downloads the audio of YouTube videos for FreeMic."), |ui| {
             match &tool {
                 Some(t) => {
@@ -347,9 +409,17 @@ impl FreeMicApp {
                         7200..=172_799 => format!("{} hours ago", ago / 3600),
                         _ => format!("{} days ago", ago / 86400),
                     };
-                    widgets::status_line(ui, p.good, format!("yt-dlp {} is installed (last checked for updates {ago}).", t.version));
+                    let version = if t.version.is_empty() { "(version unknown)".to_string() } else { t.version.clone() };
+                    let how = if self.yt.bundled { "comes with FreeMic" } else { "is installed" };
+                    widgets::status_line(ui, p.good, format!("yt-dlp {version} {how}."));
+                    match t.update() {
+                        Some(l) => widgets::status_line(ui, p.warn, format!("A newer version is available: {l}.")),
+                        None if t.checked == 0 => widgets::hint(ui, "Not checked for updates yet."),
+                        None => widgets::hint(ui, format!("Up to date (checked {ago}).")),
+                    }
                 }
-                None => widgets::status_line(ui, p.faint, "yt-dlp is not installed. It is downloaded the first time you use the YouTube page."),
+                None if self.yt.bundled => widgets::status_line(ui, p.bad, self.yt.missing.clone()),
+                None => widgets::status_line(ui, p.faint, "yt-dlp is not set up. It is downloaded the first time you use the YouTube page."),
             }
             match youtube::js_runtime() {
                 Some((name, path)) => widgets::hint(ui, format!("JavaScript runtime for YouTube's player checks: {name} ({})", path.display())),
@@ -357,11 +427,15 @@ impl FreeMicApp {
             }
             ui.add_enabled_ui(busy.is_none(), |ui| {
                 ui.horizontal_wrapped(|ui| {
-                    if tool.is_some() {
-                        if widgets::button(ui, Kind::Secondary, None, "Check for update").clicked() {
-                            self.yt.send(Job::Setup { force: true });
+                    if let Some(t) = &tool {
+                        if t.update().is_some() {
+                            if widgets::button(ui, Kind::Primary, Some(Icon::Download), "Update yt-dlp").clicked() {
+                                self.yt.send(Job::Update);
+                            }
+                        } else if widgets::button(ui, Kind::Secondary, None, "Check for updates").clicked() {
+                            self.yt.send(Job::Check { force: true });
                         }
-                        if widgets::button(ui, Kind::Ghost, None, "Remove yt-dlp").clicked() {
+                        if !self.yt.bundled && widgets::button(ui, Kind::Ghost, None, "Remove yt-dlp").clicked() {
                             self.yt.send(Job::Remove);
                         }
                     }
@@ -370,11 +444,20 @@ impl FreeMicApp {
                     }
                 });
             });
-            if matches!(busy, Some(Busy::Setup)) {
+            if let Some(b @ (Busy::Setup | Busy::Check | Busy::Update)) = &busy {
+                let text = match b {
+                    Busy::Check => "Looking for a newer yt-dlp…",
+                    Busy::Update => "Updating yt-dlp…",
+                    _ => "Working…",
+                };
                 ui.horizontal(|ui| {
                     ui.add(egui::Spinner::new().size(14.0).color(p.accent));
-                    ui.label(RichText::new("Working…").color(p.dim));
+                    ui.label(RichText::new(text).color(p.dim));
                 });
+            }
+            let error = self.yt.state.lock().unwrap().error.clone();
+            if let (Some(e), None) = (error, &busy) {
+                widgets::status_line(ui, p.bad, e);
             }
         });
     }

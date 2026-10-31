@@ -190,7 +190,9 @@ fn problems(f: &Frame, only: Option<&HashSet<usize>>) -> Vec<String> {
         for &(i, vis) in &visible {
             for &(r, _) in &f.clickable {
                 let ov = area(vis.intersect(r));
-                if ov > 2.0 && ov < area(vis) - 2.0 {
+                // Glyph ink may stick out of a widget by under a pixel (e.g. the tail of a final "y").
+                let slack = vis.width().max(vis.height()).max(2.0);
+                if ov > 2.0 && ov < area(vis) - slack {
                     errs.push(format!("text half-covers a control: {:?} {:?} and control {:?}", f.texts[i].text, vis, r));
                 }
             }
@@ -329,13 +331,13 @@ fn youtube_page_fits_in_every_state() {
     r.app.test_status(Some(status_running()));
     r.app.open_view(View::YouTube);
     type Setup = fn(&mut freemic::youtube::State);
-    let states: [(&str, Setup); 5] = [
+    let states: [(&str, Setup); 8] = [
         ("not set up", |s| {
             s.tool = None;
             s.error = Some("could not reach GitHub: io: Connection refused (os error 10061) while fetching https://github.com/yt-dlp/yt-dlp/releases/latest".into());
         }),
         ("results", |s| {
-            s.tool = Some(ToolState { version: "2026.10.26".into(), checked: 0 });
+            s.tool = Some(ToolState { version: "2026.10.26".into(), checked: 0, latest: None });
             s.results = yt_results();
             s.ranked = true;
             s.error = None;
@@ -355,14 +357,32 @@ fn youtube_page_fits_in_every_state() {
             s.progress = Some(0.7);
             s.error = None;
         }),
+        ("update available", |s| {
+            s.tool = Some(ToolState { version: "2026.10.26".into(), checked: 1, latest: Some("2026.11.30".into()) });
+            s.busy = None;
+            s.progress = None;
+            s.results = yt_results();
+        }),
+        ("updating", |s| {
+            s.busy = Some(Busy::Update);
+        }),
+        ("update failed", |s| {
+            s.busy = None;
+            s.error = Some("yt-dlp can't update itself because FreeMic's folder is read-only for your account (ERROR: Insufficient permissions to write to C:\\Program Files\\FreeMic\\yt-dlp.exe). Install the newest FreeMic instead.".into());
+        }),
     ];
     for (name, setup) in states {
         r.app.test_youtube(setup);
-        for &size in SIZES {
-            for ppp in [1.0, 1.5] {
-                let f = r.frame(size, ppp);
-                assert!(f.texts.iter().any(|t| t.text == "Get sounds from YouTube"), "{name} {size:?}");
-                check(&format!("youtube {name} {size:?} @{ppp}"), &f, None, &mut errs);
+        // The YouTube page, and the yt-dlp card in Settings.
+        for view in [View::YouTube, View::Settings] {
+            r.app.open_view(view);
+            for &size in SIZES {
+                for ppp in [1.0, 1.5] {
+                    let f = r.frame(size, ppp);
+                    let title = if view == View::YouTube { "Get sounds from YouTube" } else { "YouTube downloads" };
+                    assert!(f.texts.iter().any(|t| t.text == title), "{name} {view:?} {size:?}");
+                    check(&format!("youtube {name} {view:?} {size:?} @{ppp}"), &f, None, &mut errs);
+                }
             }
         }
     }

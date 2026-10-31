@@ -1,12 +1,18 @@
-//! Live YouTube test (needs the internet, so it is not part of the normal run):
+//! Live YouTube tests (need the internet, so they are not part of the normal run):
 //!
-//!     cargo test --release --test youtube_live -- --ignored --nocapture
+//!     cargo test --release --test youtube_live -- --ignored --nocapture --test-threads 1
 //!
-//! Installs yt-dlp into a temporary folder (download + SHA-256 check), searches,
-//! looks up a video, downloads its audio, decodes it with FreeMic's decoder, and
-//! checks that a playlist link is refused and a link inside a playlist only
-//! fetches that one video.
+//! Windows: yt-dlp ships with FreeMic, so point `FREEMIC_YTDLP` at a copy of
+//! the official yt-dlp.exe (it is copied into a temporary folder first). For
+//! `yt_dlp_self_update`, point `FREEMIC_YTDLP_OLD` at an older official
+//! yt-dlp.exe.
+//! Linux: yt-dlp is downloaded into a temporary folder (SHA-256 checked).
+//!
+//! Then: searches, looks up a video, downloads its audio, decodes it with
+//! FreeMic's decoder, checks that a playlist link is refused and a link inside
+//! a playlist only fetches that one video, and that Cancel stops yt-dlp.
 
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 
@@ -16,27 +22,57 @@ use freemic::youtube::{self, Link, Tool};
 /// "Me at the zoo", the first YouTube video (19 s).
 const VIDEO: &str = "jNQXAC9IVRw";
 
+fn temp_dir(name: &str) -> PathBuf {
+    let dir = std::env::temp_dir().join(format!("freemic-{name}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    dir
+}
+
+/// yt-dlp.exe processes started from `dir` that are still running.
+#[cfg(windows)]
+fn running_from(dir: &std::path::Path) -> usize {
+    let out = std::process::Command::new("powershell.exe")
+        .args(["-NoProfile", "-Command", "Get-Process yt-dlp -ErrorAction SilentlyContinue | ForEach-Object { $_.Path }"])
+        .output()
+        .unwrap();
+    let dir = dir.to_string_lossy().to_lowercase();
+    String::from_utf8_lossy(&out.stdout).lines().filter(|l| l.to_lowercase().starts_with(&dir)).count()
+}
+
+#[cfg(windows)]
+fn tool(dir: &std::path::Path, var: &str) -> Tool {
+    let src = std::env::var_os(var).unwrap_or_else(|| panic!("set {var} to an official yt-dlp.exe"));
+    let exe = dir.join("app").join("yt-dlp.exe");
+    std::fs::create_dir_all(exe.parent().unwrap()).unwrap();
+    std::fs::copy(src, &exe).unwrap();
+    Tool::bundled(exe, dir.join("tools"))
+}
+
 #[test]
 #[ignore]
 fn youtube_end_to_end() {
-    let dir = std::env::temp_dir().join(format!("freemic-yt-live-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
-    let tool = Tool::new(dir.join("tools"));
+    let dir = temp_dir("yt-live");
     let cancel = Arc::new(AtomicBool::new(false));
 
-    // 1. Install yt-dlp from GitHub, verified against SHA2-256SUMS.
-    let st = tool.ensure(false, &|_| {}, &cancel).expect("install yt-dlp");
-    println!("installed yt-dlp {} at {}", st.version, tool.exe().display());
+    // 1. yt-dlp ready: Windows reads the version of the bundled copy; Linux
+    //    installs it from GitHub, verified against SHA2-256SUMS.
+    #[cfg(windows)]
+    let tool = tool(&dir, "FREEMIC_YTDLP");
+    #[cfg(not(windows))]
+    let tool = Tool::new(dir.join("tools"));
+    let st = tool.setup(&|_| {}, &cancel).expect("yt-dlp ready");
+    println!("yt-dlp {} at {} (bundled: {})", st.version, tool.exe().display(), tool.is_bundled());
     assert!(tool.exe().is_file());
-    // A second call within 6 hours does not touch the network or reinstall.
+    assert!(!st.version.is_empty() && st.version.starts_with("20"), "{st:?}");
     let modified = std::fs::metadata(tool.exe()).unwrap().modified().unwrap();
-    let st2 = tool.ensure(false, &|_| {}, &cancel).unwrap();
-    assert_eq!(st2.version, st.version);
+    // A forced check asks GitHub for the newest version and never touches yt-dlp itself.
+    let checked = tool.check(true).expect("update check");
+    println!("update check: {checked:?}");
+    assert!(checked.checked > 0 && checked.latest.is_some());
     assert_eq!(std::fs::metadata(tool.exe()).unwrap().modified().unwrap(), modified);
-    // A forced check finds the same version and keeps the file.
-    let st3 = tool.ensure(true, &|_| {}, &cancel).unwrap();
-    assert_eq!(st3.version, st.version);
-    assert_eq!(std::fs::metadata(tool.exe()).unwrap().modified().unwrap(), modified);
+    // An unforced check within 6 hours is answered from the saved state.
+    assert_eq!(tool.check(false).unwrap().checked, checked.checked);
 
     // 2. Search.
     let results = youtube::search(&tool.exe(), "me at the zoo", &cancel).expect("search");
@@ -75,7 +111,7 @@ fn youtube_end_to_end() {
     // 6. Playlist links are refused before yt-dlp is ever called.
     assert_eq!(youtube::parse_link("https://www.youtube.com/playlist?list=PLFgquLnL59alCl_2TQvOiD5Vgm1hCaGSI"), Some(Link::NotAVideo));
 
-    // 7. Cancel stops a running yt-dlp quickly.
+    // 7. Cancel stops a running yt-dlp (and the process it unpacks into) quickly.
     let c2 = Arc::new(AtomicBool::new(false));
     let c3 = c2.clone();
     let t = std::thread::spawn(move || {
@@ -88,8 +124,45 @@ fn youtube_end_to_end() {
     println!("cancelled search returned {:?} after {:?}", r.as_ref().err(), started.elapsed());
     assert_eq!(r.err().as_deref(), Some("cancelled"));
     assert!(started.elapsed() < std::time::Duration::from_secs(5));
+    #[cfg(windows)]
+    {
+        std::thread::sleep(std::time::Duration::from_millis(500));
+        assert_eq!(running_from(&dir), 0, "no yt-dlp process left");
+    }
 
-    tool.remove();
-    assert!(!tool.exe().exists());
+    #[cfg(not(windows))]
+    {
+        tool.remove();
+        assert!(!tool.exe().exists());
+    }
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// Windows: "Update yt-dlp" runs yt-dlp's own updater on an older official
+/// build; afterwards the newest version is in place, verified by yt-dlp
+/// against SHA2-256SUMS, and nothing is left behind.
+#[cfg(windows)]
+#[test]
+#[ignore]
+fn yt_dlp_self_update() {
+    let dir = temp_dir("yt-update");
+    let cancel = Arc::new(AtomicBool::new(false));
+    let tool = tool(&dir, "FREEMIC_YTDLP_OLD");
+    let before = tool.check(true).expect("check");
+    println!("before: {before:?}");
+    let latest = before.update().expect("FREEMIC_YTDLP_OLD must be older than the newest release").to_string();
+    let started = std::time::Instant::now();
+    let after = tool.update(&|_| {}, &cancel).expect("update");
+    println!("after {:?}: {after:?}", started.elapsed());
+    assert_eq!(after.version, latest);
+    assert_eq!(after.update(), None);
+    assert_eq!(youtube::file_version(&tool.exe()).as_deref(), Some(latest.as_str()));
+    let left: Vec<_> = std::fs::read_dir(tool.exe().parent().unwrap()).unwrap().flatten().map(|e| e.file_name()).collect();
+    assert_eq!(left, vec![std::ffi::OsString::from("yt-dlp.exe")], "no .old / .new copies left");
+    std::thread::sleep(std::time::Duration::from_millis(500));
+    assert_eq!(running_from(&dir), 0, "no yt-dlp process left");
+    // The updated copy works.
+    let v = youtube::lookup(&tool.exe(), VIDEO, &cancel).expect("lookup with the updated yt-dlp");
+    assert_eq!(v.id, VIDEO);
     let _ = std::fs::remove_dir_all(&dir);
 }

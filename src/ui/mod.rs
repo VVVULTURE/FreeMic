@@ -124,6 +124,12 @@ pub struct FreeMicApp {
     status_override: Option<Status>,
     yt: crate::youtube::Service,
     yt_form: youtube_view::YtForm,
+    /// A quiet yt-dlp update check was started this run.
+    yt_checked: bool,
+    /// Tests: keep the yt-dlp card in Settings scrolled into view.
+    test_show_yt_card: bool,
+    /// Tests: add this video once it has been looked up (like clicking "Add").
+    test_yt_add: Option<String>,
 }
 
 impl FreeMicApp {
@@ -178,6 +184,9 @@ impl FreeMicApp {
             status_override: None,
             yt,
             yt_form: Default::default(),
+            yt_checked: false,
+            test_show_yt_card: false,
+            test_yt_add: None,
         };
         app.apply_theme(ctx);
         app.sync_targets();
@@ -193,6 +202,12 @@ impl FreeMicApp {
         if let Ok(q) = std::env::var("FREEMIC_TEST_YT_SEARCH") {
             app.yt_form.query = q;
             app.yt_submit();
+        }
+        // Paste a video link, then "Add to soundboard" once it's found.
+        if let Ok(id) = std::env::var("FREEMIC_TEST_YT_ADD") {
+            app.yt_form.query = format!("https://www.youtube.com/watch?v={id}");
+            app.yt_submit();
+            app.test_yt_add = Some(id);
         }
         for w in opts.load_warnings {
             app.toast(w, true);
@@ -661,7 +676,7 @@ impl FreeMicApp {
 
     fn board_view(&mut self, ui: &mut egui::Ui) {
         if self.board.sounds.is_empty() {
-            egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
+            egui::ScrollArea::vertical().id_salt("empty_board_scroll").auto_shrink([false, false]).show(ui, |ui| {
                 self.setup_banner(ui);
                 self.empty_state(ui);
             });
@@ -694,7 +709,7 @@ impl FreeMicApp {
         let mut menu_action: Option<(u64, MenuAction)> = None;
         let mut drop_target: Option<usize> = None;
 
-        egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
+        egui::ScrollArea::vertical().id_salt("board_scroll").auto_shrink([false, false]).show(ui, |ui| {
             // Inset so the "playing" ring around a pad is never clipped by the scroll area.
             let inset = 6.0;
             let width = ui.available_width() - 2.0 * inset - 2.0;
@@ -923,7 +938,7 @@ impl FreeMicApp {
         let st = self.status();
         let mut changed = false;
         let p = *theme::pal(ui);
-        egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
+        egui::ScrollArea::vertical().id_salt("settings_scroll").auto_shrink([false, false]).show(ui, |ui| {
             let avail = ui.available_width();
             let w = avail.min(720.0);
             ui.horizontal(|ui| {
@@ -1324,6 +1339,9 @@ impl FreeMicApp {
     }
     #[doc(hidden)]
     pub fn test_youtube(&mut self, f: impl FnOnce(&mut crate::youtube::State)) {
+        // No background update check that could replace the state under test.
+        self.yt_checked = true;
+        self.test_show_yt_card = true;
         f(&mut self.yt.state.lock().unwrap());
     }
     #[doc(hidden)]
@@ -1438,27 +1456,15 @@ fn setup_instructions(ui: &mut egui::Ui, p: &Palette) {
             ui.label(RichText::new("Set up the virtual microphone (one time)").font(theme::font_bold(14.0)).color(p.text));
             for line in [
                 "Windows only lets drivers create microphones, so FreeMic uses the free, signed VB-CABLE driver by VB-Audio.",
-                "1. Download VB-CABLE from the official site.",
-                "2. Extract the zip, right-click VBCABLE_Setup_x64.exe, choose Run as administrator, then Install Driver.",
-                "3. Restart Windows if the installer asks, then click Re-check devices.",
+                "1. Open the VB-CABLE page and download the Windows package (a zip file).",
+                "2. Extract the zip, right-click VBCABLE_Setup_x64.exe, choose Run as administrator, then click Install Driver.",
+                "3. Restart Windows if the installer asks. FreeMic finds the new device by itself within a few seconds.",
             ] {
                 ui.add(egui::Label::new(RichText::new(line).color(p.dim)).wrap());
             }
-            widgets::hint(ui, "FreeMic never changes your default microphone or speakers.");
+            widgets::hint(ui, "FreeMic doesn't download or install drivers itself: installing a driver needs your administrator approval in VB-Audio's own installer. FreeMic never changes your default microphone or speakers.");
             ui.horizontal_wrapped(|ui| {
-                let helper = std::env::current_exe().ok().and_then(|e| e.parent().map(|d| d.join("install-vbcable.ps1")));
-                if let Some(script) = helper.filter(|p| p.exists()) {
-                    if widgets::button(ui, Kind::Primary, Some(Icon::Download), "Download and install VB-CABLE…")
-                        .on_hover_text("Downloads the official package from vb-audio.com, checks its signature and starts VB-Audio's installer (Windows will ask for administrator approval).")
-                        .clicked()
-                    {
-                        let _ = std::process::Command::new("powershell.exe")
-                            .args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-NoExit", "-File"])
-                            .arg(script)
-                            .spawn();
-                    }
-                }
-                if widgets::button(ui, Kind::Secondary, None, "Open the VB-CABLE web page").clicked() {
+                if widgets::button(ui, Kind::Primary, Some(Icon::Download), "Open the VB-CABLE page").clicked() {
                     platform::open_url("https://vb-audio.com/Cable/");
                 }
             });

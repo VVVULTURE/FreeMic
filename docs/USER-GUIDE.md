@@ -128,13 +128,22 @@ The **YouTube** page saves the audio of a YouTube video on your computer and
 adds it to the soundboard. It brings the search and download logic of
 [YT-Downloader](https://github.com/VVVULTURE/YT-Downloader) into FreeMic.
 
-**First use.** Click **Set up YouTube downloads**. FreeMic downloads
-[yt-dlp](https://github.com/yt-dlp/yt-dlp), the free, open-source downloader
-YT-Downloader is built on, from yt-dlp's official GitHub releases (about
-24 MB on Windows, 41 MB on Linux), checks it against the SHA-256 checksum
-published with that release, and keeps it in FreeMic's data folder
-(`tools/`). Nothing is installed system-wide. FreeMic checks for a newer
-yt-dlp at most every 6 hours, and only while you use the YouTube page.
+**yt-dlp.** FreeMic uses [yt-dlp](https://github.com/yt-dlp/yt-dlp), the
+free, open-source downloader YT-Downloader is built on.
+
+- **Windows:** yt-dlp comes with FreeMic (`yt-dlp.exe` next to
+  `FreeMic.exe`), so the page works right away.
+- **Linux:** the first time, click **Set up YouTube downloads**. FreeMic
+  downloads yt-dlp from its official GitHub releases (about 41 MB), checks it
+  against the SHA-256 checksum published with that release, and keeps it in
+  FreeMic's data folder (`tools/`). Nothing is installed system-wide.
+
+YouTube changes often, and new yt-dlp versions follow those changes. While
+you use the YouTube page, FreeMic asks GitHub for the newest yt-dlp version
+(at most every 6 hours). If there is one, the page shows **Update yt-dlp**;
+nothing is updated until you click it. On Windows the update is done by
+yt-dlp's own updater, which checks the new file against its published
+SHA-256.
 
 **Sounds & videos.** Type what you're looking for (e.g. `vine boom`) and
 press **Search**, or paste a video link and press **Get video**. Up to 10
@@ -165,8 +174,8 @@ usual). Removing the button deletes the file. If you add the same video
 again, FreeMic reuses the file instead of downloading it twice.
 
 **Cancel** stops a search or download right away. **Settings → YouTube
-downloads** shows the yt-dlp version, checks for an update, removes yt-dlp,
-or opens the downloads folder.
+downloads** shows the yt-dlp version, **Check for updates** / **Update
+yt-dlp**, **Open downloads folder**, and on Linux **Remove yt-dlp**.
 
 Only download audio you have the right to use.
 
@@ -207,9 +216,11 @@ other programs should select.
 
 - **Windows:** `Automatic (detect virtual cable)` uses VB-CABLE's `CABLE
   Input`. If no cable is installed, the page explains how to set one up and
-  offers **Download and install VB-CABLE…**. You can also choose any output
-  device by hand, for example another virtual cable. **Re-check devices**
-  looks again after you've installed a driver.
+  offers **Open the VB-CABLE page** (you install the driver with VB-Audio's
+  own installer; FreeMic never downloads or starts driver installers). FreeMic
+  looks for the cable every 3 seconds and uses it as soon as it appears;
+  **Re-check devices** looks right away. You can also choose any output
+  device by hand, for example another virtual cable.
 - **Linux:** FreeMic creates the virtual microphone itself through
   PulseAudio/PipeWire when it starts, and removes it when it quits.
 
@@ -224,6 +235,6 @@ other programs should select.
 
 Everything is in one folder (see [INSTALL.md](INSTALL.md#where-freemic-stores-data)):
 `settings.json`, `soundboard.json`, `sounds/` (including `sounds/youtube/`)
-and `tools/` (yt-dlp, if you used the YouTube page). To back up or move your
+and `tools/` (on Linux also yt-dlp, if you used the YouTube page). To back up or move your
 soundboard, copy that folder while FreeMic is closed. With the portable
 version, just copy the whole FreeMic folder.

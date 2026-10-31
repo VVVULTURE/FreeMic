@@ -1,6 +1,6 @@
 [package]
 name = "freemic"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2024"
 description = "Soundboard + virtual microphone that mixes your real microphone with sound effects"
 license = "MIT"
@@ -23,7 +23,7 @@ sha2 = "0.11"
 
 [target.'cfg(windows)'.dependencies]
 wasapi = "0.26"
-windows = { version = "0.62", features = ["Win32_Foundation", "Win32_System_Threading", "Win32_UI_Shell", "Win32_System_Registry", "Win32_Media_Audio", "Win32_Storage_FileSystem", "Win32_System_Pipes", "Win32_Security", "Win32_System_IO", "Win32_System_Console"] }
+windows = { version = "0.62", features = ["Win32_Foundation", "Win32_System_Threading", "Win32_UI_Shell", "Win32_System_Registry", "Win32_Media_Audio", "Win32_Storage_FileSystem", "Win32_System_Pipes", "Win32_Security", "Win32_System_IO", "Win32_System_Console", "Win32_System_JobObjects"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 libpulse-binding = "2.30"

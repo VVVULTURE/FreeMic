@@ -35,13 +35,12 @@ file** (`freemic.log`; the previous run's log is kept as `freemic.old.log`).
 
 ## Windows: "No virtual microphone found" / VB-CABLE issues
 
-- Install VB-CABLE (Settings → **Download and install VB-CABLE…**, or see
-  [INSTALL.md](INSTALL.md#windows-vb-cable)), restart if asked, then click
-  **Re-check devices**.
-- If the automatic download fails (no internet, proxy), download the zip
-  from <https://vb-audio.com/Cable/> yourself.
-- "Signature check failed": the downloaded file isn't signed by VB-Audio.
-  FreeMic refuses to run it. Download it manually from the official site.
+- Install VB-CABLE: Settings → **Open the VB-CABLE page**, download the
+  Windows package, extract it, right-click `VBCABLE_Setup_x64.exe` → **Run as
+  administrator** → **Install Driver** (see
+  [INSTALL.md](INSTALL.md#windows-vb-cable)). Restart if asked. FreeMic looks
+  for the device every 3 seconds and switches to it by itself; **Re-check
+  devices** looks right away.
 - Everything you hear goes into the microphone: **CABLE Input** was made the
   Windows default output device. Set your speakers/headphones back as the
   default output. FreeMic never changes this setting itself.
@@ -102,18 +101,28 @@ file** (`freemic.log`; the previous run's log is kept as `freemic.old.log`).
 
 ## YouTube page
 
-- **"Could not reach GitHub" during setup**: FreeMic downloads yt-dlp from
-  github.com over HTTPS. Check your internet connection, proxy or firewall.
-  Once yt-dlp is installed, a failed update check doesn't stop it from
-  working.
-- **"failed its checksum"**: the downloaded yt-dlp didn't match the SHA-256
-  published with the release, so nothing was installed. Try again; if it
-  keeps happening, something between you and GitHub is changing downloads.
+- **"yt-dlp.exe is missing from FreeMic's folder"** (Windows): yt-dlp comes
+  with FreeMic and lives next to `FreeMic.exe`. If it was deleted (or
+  quarantined by an antivirus), reinstall FreeMic or extract the portable zip
+  again.
+- **"Could not reach GitHub" during setup** (Linux): FreeMic downloads yt-dlp
+  from github.com over HTTPS. Check your internet connection, proxy or
+  firewall. Once yt-dlp is installed, a failed update check doesn't stop it
+  from working.
+- **"failed its checksum"** (Linux): the downloaded yt-dlp didn't match the
+  SHA-256 published with the release, so nothing was installed. Try again;
+  if it keeps happening, something between you and GitHub is changing
+  downloads.
 - **"YouTube blocked this attempt (bot check or session error)"**: YouTube
   sometimes refuses automated requests. Wait a moment and try again. If it
-  keeps happening, use **Settings → YouTube downloads → Check for update**;
-  new yt-dlp releases follow YouTube's changes. FreeMic already tries five
-  different YouTube player clients before giving up.
+  keeps happening, check **Settings → YouTube downloads** for a newer yt-dlp
+  (**Check for updates**, then **Update yt-dlp**); new yt-dlp releases follow
+  YouTube's changes. FreeMic already tries five different YouTube player
+  clients before giving up.
+- **"yt-dlp can't update itself because FreeMic's folder is read-only"**
+  (Windows): FreeMic was installed for all users (in Program Files), where
+  your account can't change files. Install the newest FreeMic (it brings the
+  newest yt-dlp), or reinstall FreeMic "for me only".
 - **"YouTube offers no AAC audio for this video"**: FreeMic plays the AAC
   stream directly and doesn't convert audio. Try another upload of the same
   sound.
@@ -123,6 +132,29 @@ file** (`freemic.log`; the previous run's log is kept as `freemic.old.log`).
 - **"private, members-only or has been removed"**: the video can't be
   downloaded.
 - Details of each attempt (the yt-dlp error line) are in `freemic.log`.
+
+## Antivirus warnings
+
+FreeMic 0.2.0 was flagged by Microsoft Defender as `Trojan:Win32/Bearfoos.B!ml`
+because it downloaded yt-dlp.exe and saved it to disk, which is what malware
+"droppers" do. Version 0.2.1 never downloads or writes program files, runs no
+scripts and never asks for administrator rights; see the README section
+"Security and antivirus". If you still had 0.2.0:
+
+1. Leave the quarantined 0.2.0 files in Windows Security → Protection
+   history; don't restore or allow them.
+2. Install 0.2.1. Your soundboard and settings in `%APPDATA%\FreeMic` are
+   kept. 0.2.1 deletes the yt-dlp.exe that 0.2.0 had downloaded into
+   `%APPDATA%\FreeMic\tools` (it now uses the copy next to FreeMic.exe).
+
+If an antivirus flags 0.2.1, please don't turn the antivirus off or add an
+exclusion. Report the file as a false positive instead. For Microsoft
+Defender: <https://www.microsoft.com/wdsi/filesubmission> → "Software
+developer" or "Home customer" → upload the file → "Incorrectly detected as
+malware". Windows SmartScreen ("Windows protected your PC") is a separate
+reputation check for programs that aren't code-signed and are new: **More
+info** → **Run anyway** is safe for a FreeMic download from the official
+GitHub release page.
 
 ## FreeMic is already running
 

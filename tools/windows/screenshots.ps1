@@ -47,13 +47,16 @@ function New-Demo([string]$dir, [bool]$withSounds) {
     [IO.File]::WriteAllText("$dir\soundboard.json", ($board | ConvertTo-Json -Depth 5))
 }
 
-# yt-dlp for the YouTube screenshots, downloaded by FreeMic itself the first time.
-$ytCache = Join-Path $env:TEMP 'freemic-shot-tools'
+# yt-dlp for the YouTube screenshots: the verified copy packaging\windows\build.ps1 fetched.
+$ytExe = Get-ChildItem "$root\dist\yt-dlp\*\yt-dlp.exe" -ErrorAction SilentlyContinue | Sort-Object FullName -Descending | Select-Object -First 1
 
 function Shot([string]$name, [int]$w, [int]$h, [string]$theme, [string]$view, [string]$play, [bool]$withSounds, [bool]$muted, [string]$ytSearch = '') {
     $dir = Join-Path $env:TEMP "freemic-shot-$name"
     New-Demo $dir $withSounds
-    if ($ytSearch -and (Test-Path "$ytCache\yt-dlp.exe")) { Copy-Item $ytCache "$dir\tools" -Recurse }
+    if ($ytSearch) {
+        if (-not $ytExe) { throw "run packaging\windows\build.ps1 first (it fetches yt-dlp.exe)" }
+        $env:FREEMIC_YTDLP = $ytExe.FullName
+    }
     $settings = [ordered]@{ version = 1; window_size = @($w, $h); theme = $theme; mic_enabled = $false; mic_muted = $muted; stop_hotkey = 'control+shift+F12' }
     [IO.File]::WriteAllText("$dir\settings.json", ($settings | ConvertTo-Json))
     $env:FREEMIC_BACKEND = 'null'; $env:FREEMIC_TEST_WINDOW = '1'; $env:FREEMIC_NO_HOTKEYS = '1'; $env:FREEMIC_DATA_DIR = $dir
@@ -70,9 +73,8 @@ function Shot([string]$name, [int]$w, [int]$h, [string]$theme, [string]$view, [s
         & "$root\tools\win_capture.ps1" -ProcessId $p.Id -Out "$Out\$name.png"
     } finally {
         Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
-        foreach ($v in 'FREEMIC_BACKEND', 'FREEMIC_TEST_WINDOW', 'FREEMIC_NO_HOTKEYS', 'FREEMIC_DATA_DIR', 'FREEMIC_TEST_VIEW', 'FREEMIC_TEST_PLAY', 'FREEMIC_TEST_YT_SEARCH') { Remove-Item "env:$v" -ErrorAction SilentlyContinue }
+        foreach ($v in 'FREEMIC_BACKEND', 'FREEMIC_TEST_WINDOW', 'FREEMIC_NO_HOTKEYS', 'FREEMIC_DATA_DIR', 'FREEMIC_TEST_VIEW', 'FREEMIC_TEST_PLAY', 'FREEMIC_TEST_YT_SEARCH', 'FREEMIC_YTDLP') { Remove-Item "env:$v" -ErrorAction SilentlyContinue }
         Start-Sleep -Milliseconds 300
-        if ($ytSearch -and -not (Test-Path "$ytCache\yt-dlp.exe") -and (Test-Path "$dir\tools\yt-dlp.exe")) { Copy-Item "$dir\tools" $ytCache -Recurse }
         Remove-Item $dir -Recurse -Force -ErrorAction SilentlyContinue
     }
 }

@@ -1,12 +1,14 @@
 ; FreeMic installer (Inno Setup 6). Built by packaging/windows/build.ps1.
 ; Installs for the current user by default (no administrator rights needed).
-; VB-CABLE is a separate VB-Audio product: it is never bundled. If it is not
-; installed, an optional task downloads it from vb-audio.com, verifies the
-; signature and starts VB-Audio's own installer (which asks for admin rights).
-; Silent installs (/SILENT, /VERYSILENT) never download or start it.
+; VB-CABLE is a separate VB-Audio product: it is never bundled, downloaded or
+; started by FreeMic or this installer (a driver needs administrator approval in
+; VB-Audio's own installer). If it is missing, the last page offers to open the
+; VB-CABLE web page. Silent installs (/SILENT, /VERYSILENT) don't open it.
+; yt-dlp.exe (official, unmodified, SHA-256 checked by build.ps1) is included
+; for the YouTube page.
 
 #ifndef AppVersion
-  #define AppVersion "0.2.0"
+  #define AppVersion "0.2.1"
 #endif
 #ifndef SourceDir
   #define SourceDir "..\..\dist\stage"
@@ -37,22 +39,38 @@ SolidCompression=yes
 WizardStyle=modern
 CloseApplications=yes
 AppMutex=Local\FreeMic-main
+VersionInfoVersion={#AppVersion}
+VersionInfoProductName=FreeMic
+VersionInfoDescription=FreeMic setup
+VersionInfoCopyright=Copyright (c) 2026 Vaden. MIT License.
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a &desktop shortcut"; GroupDescription: "Shortcuts:"; Flags: unchecked
-Name: "vbcable"; Description: "Download and install the free VB-CABLE virtual audio driver from vb-audio.com (needed for the virtual microphone; Windows will ask for administrator approval)"; GroupDescription: "Virtual microphone:"; Check: not VBCableInstalled
 
 [Files]
 Source: "{#SourceDir}\FreeMic.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#SourceDir}\install-vbcable.ps1"; DestDir: "{app}"; Flags: ignoreversion
+; Not "ignoreversion": a copy that "Update yt-dlp" made newer is kept on upgrade.
+Source: "{#SourceDir}\yt-dlp.exe"; DestDir: "{app}"
+Source: "{#SourceDir}\yt-dlp-LICENSE.txt"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#SourceDir}\yt-dlp-THIRD_PARTY_LICENSES.txt"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#SourceDir}\yt-dlp-SOURCE.txt"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#SourceDir}\LICENSE.txt"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#SourceDir}\THIRD-PARTY-NOTICES.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#SourceDir}\Inter-LICENSE.txt"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#SourceDir}\README.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#SourceDir}\docs\*"; DestDir: "{app}\docs"; Flags: ignoreversion recursesubdirs
+
+[InstallDelete]
+; Left in the program folder by FreeMic 0.2.0 (no longer used).
+Type: files; Name: "{app}\install-vbcable.ps1"
+
+[UninstallDelete]
+; What yt-dlp's own updater may leave next to yt-dlp.exe.
+Type: files; Name: "{app}\yt-dlp.exe.old"
+Type: files; Name: "{app}\yt-dlp.exe.new"
 
 [Icons]
 Name: "{group}\FreeMic"; Filename: "{app}\FreeMic.exe"
@@ -64,7 +82,7 @@ Name: "{autodesktop}\FreeMic"; Filename: "{app}\FreeMic.exe"; Tasks: desktopicon
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: none; ValueName: "FreeMic"; Flags: uninsdeletevalue dontcreatekey
 
 [Run]
-Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\install-vbcable.ps1"""; StatusMsg: "Downloading and starting the VB-CABLE installer..."; Tasks: vbcable; Check: not WizardSilent; Flags: waituntilterminated
+Filename: "https://vb-audio.com/Cable/"; Description: "Open the VB-CABLE web page (FreeMic's virtual microphone needs this free driver)"; Flags: postinstall shellexec skipifsilent nowait; Check: not VBCableInstalled
 Filename: "{app}\FreeMic.exe"; Description: "Start FreeMic"; Flags: nowait postinstall skipifsilent
 
 [Code]

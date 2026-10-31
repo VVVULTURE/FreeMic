@@ -13,7 +13,9 @@
 //!   so no ffmpeg is needed.
 //! * Music search, ranking and the player-client fallbacks follow YT-Downloader.
 
-use std::io::{BufRead, BufReader, Read, Write};
+use std::io::{BufRead, BufReader, Read};
+#[cfg(not(windows))]
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -328,6 +330,17 @@ fn last_error_line(stderr: &str) -> String {
 }
 
 // ------------------------------------------------------------------ yt-dlp itself
+//
+// Windows: yt-dlp.exe ships with FreeMic (installer and portable zip put it
+// next to FreeMic.exe). FreeMic never downloads or writes program files on
+// Windows: a program that downloads an executable and saves it to disk is what
+// malware "droppers" do, and Microsoft Defender flagged FreeMic 0.2.0
+// (Trojan:Win32/Bearfoos.B!ml) the moment it saved a downloaded yt-dlp.exe.
+// Updates use yt-dlp's own updater (`yt-dlp -U`, which checks the new file
+// against the release's SHA2-256SUMS), only when the user asks for one.
+//
+// Linux: downloaded on first use from yt-dlp's GitHub releases into FreeMic's
+// data folder and checked against the release's SHA2-256SUMS.
 
 #[cfg(windows)]
 const ASSET: &str = "yt-dlp.exe";
@@ -340,11 +353,27 @@ const RELEASES: &str = "https://github.com/yt-dlp/yt-dlp/releases";
 const RECHECK: Duration = Duration::from_secs(6 * 3600);
 const CLIENT_FALLBACKS: &[&str] = &["default,-tv", "default,web_embedded", "web_safari,mweb", "ios", "android"];
 
-#[derive(Serialize, Deserialize, Default, Clone, Debug)]
+#[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq)]
 pub struct ToolState {
     pub version: String,
     /// Unix time of the last successful check for a newer release.
     pub checked: u64,
+    /// A newer release found by that check (cleared once installed).
+    #[serde(default)]
+    pub latest: Option<String>,
+}
+
+impl ToolState {
+    /// The newer release to offer, if any.
+    pub fn update(&self) -> Option<&str> {
+        self.latest.as_deref().filter(|l| newer(l, &self.version))
+    }
+}
+
+/// Whether yt-dlp version `a` is newer than `b` (both `YYYY.MM.DD[.N]`).
+pub fn newer(a: &str, b: &str) -> bool {
+    let parse = |v: &str| v.split('.').map(|p| p.parse::<u64>().unwrap_or(0)).collect::<Vec<_>>();
+    parse(a) > parse(b)
 }
 
 fn now() -> u64 {
@@ -373,6 +402,7 @@ fn latest_version() -> Result<String, String> {
     Ok(tag.to_string())
 }
 
+#[cfg(not(windows))]
 fn hex(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
@@ -386,45 +416,228 @@ pub fn sum_for(sums: &str, asset: &str) -> Option<String> {
     })
 }
 
+/// The `FileVersion` string of a Windows program (yt-dlp.exe has its version there).
+#[cfg(windows)]
+pub fn file_version(exe: &Path) -> Option<String> {
+    use windows::Win32::Storage::FileSystem::{GetFileVersionInfoSizeW, GetFileVersionInfoW, VerQueryValueW};
+    use windows::core::HSTRING;
+    let path = HSTRING::from(exe.as_os_str());
+    unsafe {
+        let size = GetFileVersionInfoSizeW(&path, None);
+        if size == 0 {
+            return None;
+        }
+        let mut buf = vec![0u8; size as usize];
+        GetFileVersionInfoW(&path, None, size, buf.as_mut_ptr().cast()).ok()?;
+        let mut ptr = std::ptr::null_mut();
+        let mut len = 0u32;
+        // The string table named in the translation list, then the usual
+        // English ones (yt-dlp.exe lists language 0000 but stores 040904B0;
+        // .NET's FileVersionInfo falls back the same way).
+        let mut tables = Vec::new();
+        if VerQueryValueW(buf.as_ptr().cast(), &HSTRING::from("\\VarFileInfo\\Translation"), &mut ptr, &mut len).as_bool() && len >= 4 {
+            let tr = std::slice::from_raw_parts(ptr as *const u16, 2);
+            tables.push(format!("{:04x}{:04x}", tr[0], tr[1]));
+        }
+        tables.extend(["040904b0", "040904e4", "04090000"].map(String::from));
+        for t in tables {
+            let key = HSTRING::from(format!("\\StringFileInfo\\{t}\\FileVersion"));
+            if VerQueryValueW(buf.as_ptr().cast(), &key, &mut ptr, &mut len).as_bool() && len > 0 {
+                let v = String::from_utf16_lossy(std::slice::from_raw_parts(ptr as *const u16, len as usize));
+                let v = v.trim_end_matches('\0').trim().to_string();
+                if !v.is_empty() {
+                    return Some(v);
+                }
+            }
+        }
+        None
+    }
+}
+
 pub struct Tool {
-    dir: PathBuf,
+    exe: PathBuf,
+    /// Remembers update checks (and, on Linux, the installed version).
+    state_file: PathBuf,
+    /// Shipped with FreeMic (Windows) rather than downloaded by it (Linux).
+    bundled: bool,
 }
 
 impl Tool {
+    /// yt-dlp as FreeMic uses it on this system; `tools_dir` is the data folder's `tools`.
+    pub fn for_app(tools_dir: PathBuf) -> Tool {
+        #[cfg(windows)]
+        {
+            // FREEMIC_YTDLP points development builds and tests at a copy.
+            let exe = std::env::var_os("FREEMIC_YTDLP").map(PathBuf::from).unwrap_or_else(|| {
+                std::env::current_exe().ok().and_then(|e| e.parent().map(|d| d.join(ASSET))).unwrap_or_else(|| PathBuf::from(ASSET))
+            });
+            Tool::bundled(exe, tools_dir)
+        }
+        #[cfg(not(windows))]
+        Tool::new(tools_dir)
+    }
+
+    /// A yt-dlp.exe that came with FreeMic.
+    #[cfg(windows)]
+    pub fn bundled(exe: PathBuf, tools_dir: PathBuf) -> Tool {
+        Tool { exe, state_file: tools_dir.join("yt-dlp.json"), bundled: true }
+    }
+
+    /// A yt-dlp that FreeMic downloads into `tools_dir`.
+    #[cfg(not(windows))]
     pub fn new(tools_dir: PathBuf) -> Tool {
-        Tool { dir: tools_dir }
+        Tool { exe: tools_dir.join(ASSET), state_file: tools_dir.join("yt-dlp.json"), bundled: false }
     }
 
     pub fn exe(&self) -> PathBuf {
-        self.dir.join(ASSET)
+        self.exe.clone()
     }
 
-    fn state_file(&self) -> PathBuf {
-        self.dir.join("yt-dlp.json")
+    pub fn is_bundled(&self) -> bool {
+        self.bundled
     }
 
+    fn saved(&self) -> Option<ToolState> {
+        std::fs::read_to_string(&self.state_file).ok().and_then(|s| serde_json::from_str(&s).ok())
+    }
+
+    /// `None` when yt-dlp isn't there (Linux: not set up yet; Windows: missing from FreeMic's folder).
     pub fn state(&self) -> Option<ToolState> {
-        if !self.exe().is_file() {
+        if !self.exe.is_file() {
             return None;
         }
-        std::fs::read_to_string(self.state_file()).ok().and_then(|s| serde_json::from_str(&s).ok())
+        #[cfg(windows)]
+        if self.bundled {
+            let mut st = self.saved().unwrap_or_default();
+            st.version = file_version(&self.exe).unwrap_or_default();
+            return Some(st);
+        }
+        self.saved()
     }
 
     fn save_state(&self, st: &ToolState) {
+        if let Some(dir) = self.state_file.parent() {
+            let _ = std::fs::create_dir_all(dir);
+        }
         if let Ok(s) = serde_json::to_string_pretty(st) {
-            let _ = crate::config::write_atomic(&self.state_file(), s.as_bytes());
+            let _ = crate::config::write_atomic(&self.state_file, s.as_bytes());
         }
     }
 
+    /// The message shown when yt-dlp can't be used.
+    pub fn missing_message(&self) -> String {
+        if self.bundled {
+            format!("yt-dlp.exe is missing from FreeMic's folder ({}). Reinstall FreeMic, or download the portable version again.", self.exe.display())
+        } else {
+            "yt-dlp is not set up yet.".into()
+        }
+    }
+
+    /// Make yt-dlp usable: on Linux, download it if it isn't there yet.
+    pub fn setup(&self, progress: &dyn Fn(Option<f32>), cancel: &Arc<AtomicBool>) -> Result<ToolState, String> {
+        if let Some(st) = self.state() {
+            return Ok(st);
+        }
+        #[cfg(not(windows))]
+        {
+            self.install(&latest_version()?, progress, cancel)?;
+            self.state().ok_or_else(|| "yt-dlp was installed but cannot be found".into())
+        }
+        #[cfg(windows)]
+        {
+            let _ = (progress, cancel);
+            Err(self.missing_message())
+        }
+    }
+
+    /// Look for a newer yt-dlp (when `force`, or at most every 6 hours). Never
+    /// installs anything. Being offline is fine unless `force`.
+    pub fn check(&self, force: bool) -> Result<ToolState, String> {
+        let mut st = self.state().ok_or_else(|| self.missing_message())?;
+        if !force && now().saturating_sub(st.checked) < RECHECK.as_secs() {
+            return Ok(st);
+        }
+        match latest_version() {
+            Ok(latest) => {
+                st.checked = now();
+                st.latest = Some(latest);
+                self.save_state(&st);
+                Ok(st)
+            }
+            Err(e) if force => Err(e),
+            Err(e) => {
+                log::warn!("yt-dlp update check failed: {e}");
+                Ok(st)
+            }
+        }
+    }
+
+    /// Install the newest yt-dlp. Only ever called when the user asks for it.
+    pub fn update(&self, progress: &dyn Fn(Option<f32>), cancel: &Arc<AtomicBool>) -> Result<ToolState, String> {
+        let before = self.state().ok_or_else(|| self.missing_message())?;
+        #[cfg(windows)]
+        let result = {
+            let _ = progress;
+            self.self_update(cancel)
+        };
+        #[cfg(not(windows))]
+        let result = latest_version().and_then(|v| self.install(&v, progress, cancel));
+        result?;
+        let mut st = self.state().ok_or_else(|| self.missing_message())?;
+        st.checked = now();
+        if st.latest.as_deref().is_some_and(|l| !newer(l, &st.version)) {
+            st.latest = None;
+        }
+        self.save_state(&st);
+        if st.version != before.version {
+            log::info!("yt-dlp updated from {} to {}", before.version, st.version);
+        }
+        Ok(st)
+    }
+
+    /// `yt-dlp -U`: yt-dlp downloads its newest release, checks it against
+    /// SHA2-256SUMS and replaces itself (keeping `yt-dlp.exe.old` meanwhile).
+    #[cfg(windows)]
+    fn self_update(&self, cancel: &Arc<AtomicBool>) -> Result<(), String> {
+        let mut cmd = command(&self.exe);
+        cmd.arg("-U");
+        let mut out = Vec::new();
+        let (code, stderr) = run(cmd, cancel, |l| out.push(l.to_string()))?;
+        // yt-dlp leaves deleting the old copy to a delayed `cmd` that run()
+        // already ended; do it here (the file is free once yt-dlp has exited).
+        let old = PathBuf::from(format!("{}.old", self.exe.display()));
+        for _ in 0..20 {
+            if !old.exists() || std::fs::remove_file(&old).is_ok() {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(100));
+        }
+        if code != 0 {
+            let e = last_error_line(&stderr);
+            log::warn!("yt-dlp -U failed ({code}): {e} / {}", out.join(" | "));
+            return Err(if e.contains("Insufficient permissions") {
+                format!("yt-dlp can't update itself because FreeMic's folder is read-only for your account ({e}). Install the newest FreeMic instead.")
+            } else {
+                format!("The yt-dlp update failed ({e}).")
+            });
+        }
+        log::info!("yt-dlp -U: {}", out.join(" | "));
+        Ok(())
+    }
+
+    /// Remove a downloaded yt-dlp (Linux).
+    #[cfg(not(windows))]
     pub fn remove(&self) {
-        let _ = std::fs::remove_file(self.exe());
-        let _ = std::fs::remove_file(self.state_file());
+        let _ = std::fs::remove_file(&self.exe);
+        let _ = std::fs::remove_file(&self.state_file);
     }
 
     /// Download `version` of yt-dlp and verify it before it replaces the current copy.
+    #[cfg(not(windows))]
     fn install(&self, version: &str, progress: &dyn Fn(Option<f32>), cancel: &AtomicBool) -> Result<(), String> {
         use sha2::{Digest, Sha256};
-        std::fs::create_dir_all(&self.dir).map_err(|e| format!("could not create {}: {e}", self.dir.display()))?;
+        let dir = self.exe.parent().ok_or("bad tools folder")?;
+        std::fs::create_dir_all(dir).map_err(|e| format!("could not create {}: {e}", dir.display()))?;
         let base = format!("{RELEASES}/download/{version}");
         let sums = agent()
             .get(format!("{base}/SHA2-256SUMS"))
@@ -438,7 +651,7 @@ impl Tool {
         let mut resp = agent().get(format!("{base}/{ASSET}")).call().map_err(|e| format!("could not download yt-dlp: {e}"))?;
         let total = resp.body().content_length();
         let mut reader = resp.body_mut().as_reader();
-        let part = self.dir.join(format!("{ASSET}.part"));
+        let part = dir.join(format!("{ASSET}.part"));
         let mut out = std::fs::File::create(&part).map_err(|e| format!("could not write {}: {e}", part.display()))?;
         let mut hasher = Sha256::new();
         let mut buf = vec![0u8; 64 * 1024];
@@ -465,47 +678,27 @@ impl Tool {
             let _ = std::fs::remove_file(&part);
             return Err(format!("the downloaded yt-dlp failed its checksum (expected {want}, got {have}); nothing was installed"));
         }
-        #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
             std::fs::set_permissions(&part, std::fs::Permissions::from_mode(0o755)).map_err(|e| format!("could not make yt-dlp executable: {e}"))?;
         }
-        std::fs::rename(&part, self.exe()).map_err(|e| format!("could not install yt-dlp: {e}"))?;
-        self.save_state(&ToolState { version: version.to_string(), checked: now() });
+        std::fs::rename(&part, &self.exe).map_err(|e| format!("could not install yt-dlp: {e}"))?;
+        self.save_state(&ToolState { version: version.to_string(), checked: now(), latest: None });
         log::info!("yt-dlp {version} installed ({have})");
         Ok(())
     }
+}
 
-    /// Make sure yt-dlp is there and, at most every 6 hours (or when `force`),
-    /// up to date. Being offline is fine when a copy is already installed.
-    pub fn ensure(&self, force: bool, progress: &dyn Fn(Option<f32>), cancel: &AtomicBool) -> Result<ToolState, String> {
-        let current = self.state();
-        if let Some(st) = &current {
-            if !force && now().saturating_sub(st.checked) < RECHECK.as_secs() {
-                return Ok(st.clone());
-            }
-        }
-        let latest = match latest_version() {
-            Ok(v) => v,
-            Err(e) => {
-                return match current {
-                    Some(st) => {
-                        log::warn!("yt-dlp update check failed: {e}");
-                        Ok(st)
-                    }
-                    None => Err(e),
-                };
-            }
-        };
-        match current {
-            Some(mut st) if st.version == latest => {
-                st.checked = now();
-                self.save_state(&st);
-                Ok(st)
-            }
-            _ => {
-                self.install(&latest, progress, cancel)?;
-                self.state().ok_or_else(|| "yt-dlp was installed but cannot be found".into())
+/// FreeMic 0.2.0 downloaded yt-dlp.exe into the data folder on Windows; that
+/// copy is no longer used (yt-dlp now comes with FreeMic), so remove it.
+#[cfg(windows)]
+pub fn remove_downloaded_copy(tools_dir: &Path) {
+    for name in ["yt-dlp.exe", "yt-dlp.exe.part"] {
+        let p = tools_dir.join(name);
+        if p.is_file() {
+            match std::fs::remove_file(&p) {
+                Ok(()) => log::info!("removed {} (left by FreeMic 0.2.0)", p.display()),
+                Err(e) => log::warn!("could not remove {}: {e}", p.display()),
             }
         }
     }
@@ -545,6 +738,7 @@ fn command(exe: &Path) -> Command {
     c.env("PYTHONIOENCODING", "utf-8").env("PYTHONUTF8", "1").stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
     #[cfg(windows)]
     {
+        // yt-dlp is a console program; without this a console window would pop up.
         use std::os::windows::process::CommandExt;
         const CREATE_NO_WINDOW: u32 = 0x0800_0000;
         c.creation_flags(CREATE_NO_WINDOW);
@@ -557,24 +751,84 @@ fn command(exe: &Path) -> Command {
     c
 }
 
-/// Stop yt-dlp and the process it unpacks itself into.
-fn kill_tree(child: &mut Child) {
+/// yt-dlp and every process it starts (the standalone build unpacks itself
+/// into a second process). Windows: a job object, which also ends them if
+/// FreeMic exits; Linux: the process group.
+struct ProcessTree {
     #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        let _ = Command::new("taskkill").args(["/T", "/F", "/PID", &child.id().to_string()]).creation_flags(0x0800_0000).output();
-    }
+    job: isize,
     #[cfg(unix)]
-    {
-        let _ = Command::new("kill").args(["-TERM", "--", &format!("-{}", child.id())]).output();
-    }
-    let _ = child.kill();
-    let _ = child.wait();
+    pgid: u32,
 }
 
-/// Run yt-dlp, calling `line` for each stdout line. Returns (success, stdout, stderr).
+impl ProcessTree {
+    fn new(child: &Child) -> ProcessTree {
+        #[cfg(windows)]
+        {
+            use std::os::windows::io::AsRawHandle;
+            use windows::Win32::Foundation::{CloseHandle, HANDLE};
+            use windows::Win32::System::JobObjects::{
+                AssignProcessToJobObject, CreateJobObjectW, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE, JOBOBJECT_EXTENDED_LIMIT_INFORMATION,
+                JobObjectExtendedLimitInformation, SetInformationJobObject,
+            };
+            let job = unsafe {
+                let Ok(job) = CreateJobObjectW(None, windows::core::PCWSTR::null()) else {
+                    log::warn!("could not create a job object for yt-dlp");
+                    return ProcessTree { job: 0 };
+                };
+                let mut info = JOBOBJECT_EXTENDED_LIMIT_INFORMATION::default();
+                info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+                let set = SetInformationJobObject(job, JobObjectExtendedLimitInformation, (&info as *const JOBOBJECT_EXTENDED_LIMIT_INFORMATION).cast(), size_of::<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>() as u32);
+                // yt-dlp starts its second process only after unpacking itself,
+                // so it is in the job before it can start anything.
+                let assign = AssignProcessToJobObject(job, HANDLE(child.as_raw_handle()));
+                if set.is_err() || assign.is_err() {
+                    log::warn!("could not put yt-dlp in a job object: {set:?} {assign:?}");
+                    let _ = CloseHandle(job);
+                    return ProcessTree { job: 0 };
+                }
+                job
+            };
+            ProcessTree { job: job.0 as isize }
+        }
+        #[cfg(unix)]
+        ProcessTree { pgid: child.id() }
+    }
+
+    /// End every process in the tree.
+    fn kill(&self) {
+        #[cfg(windows)]
+        if self.job != 0 {
+            use windows::Win32::Foundation::HANDLE;
+            use windows::Win32::System::JobObjects::TerminateJobObject;
+            let _ = unsafe { TerminateJobObject(HANDLE(self.job as *mut _), 1) };
+        }
+        #[cfg(unix)]
+        unsafe {
+            unsafe extern "C" {
+                fn kill(pid: i32, sig: i32) -> i32;
+            }
+            // SIGTERM to the whole group (negative pid).
+            kill(-(self.pgid as i32), 15);
+        }
+    }
+}
+
+impl Drop for ProcessTree {
+    fn drop(&mut self) {
+        // Windows: closing the job ends whatever yt-dlp left running.
+        #[cfg(windows)]
+        if self.job != 0 {
+            use windows::Win32::Foundation::{CloseHandle, HANDLE};
+            let _ = unsafe { CloseHandle(HANDLE(self.job as *mut _)) };
+        }
+    }
+}
+
+/// Run yt-dlp, calling `line` for each stdout line. Returns (exit code, stderr).
 fn run(mut cmd: Command, cancel: &Arc<AtomicBool>, mut line: impl FnMut(&str)) -> Result<(i32, String), String> {
     let mut child = cmd.spawn().map_err(|e| format!("could not start yt-dlp: {e}"))?;
+    let tree = Arc::new(ProcessTree::new(&child));
     let stderr = child.stderr.take();
     let err_thread = std::thread::spawn(move || {
         let mut s = String::new();
@@ -590,11 +844,12 @@ fn run(mut cmd: Command, cancel: &Arc<AtomicBool>, mut line: impl FnMut(&str)) -
     // Watch for cancel while blocked reading output.
     let child = Arc::new(Mutex::new(child));
     let watcher = {
-        let (child, done, cancel) = (child.clone(), finished.clone(), cancel.clone());
+        let (tree, child, done, cancel) = (tree.clone(), child.clone(), finished.clone(), cancel.clone());
         std::thread::spawn(move || {
             while !done.load(Ordering::Relaxed) {
                 if cancel.load(Ordering::Relaxed) {
-                    kill_tree(&mut child.lock().unwrap());
+                    tree.kill();
+                    let _ = child.lock().unwrap().kill();
                     break;
                 }
                 std::thread::sleep(Duration::from_millis(100));
@@ -611,6 +866,7 @@ fn run(mut cmd: Command, cancel: &Arc<AtomicBool>, mut line: impl FnMut(&str)) -
     finished.store(true, Ordering::Relaxed);
     let _ = watcher.join();
     let stderr = err_thread.join().unwrap_or_default();
+    drop(tree);
     if cancel.load(Ordering::Relaxed) {
         return Err("cancelled".into());
     }
@@ -729,17 +985,32 @@ pub fn download(exe: &Path, id: &str, dir: &Path, progress: &dyn Fn(Option<f32>)
 
 #[derive(Clone, Debug)]
 pub enum Job {
-    /// Install yt-dlp (or check for an update when `force`).
-    Setup { force: bool },
+    /// Make yt-dlp usable (Linux: download it on first use).
+    Setup,
+    /// Look for a newer yt-dlp. `force`: the user asked (shown, errors
+    /// reported); otherwise a quiet check at most every 6 hours.
+    Check { force: bool },
+    /// Install the newer yt-dlp (only when the user asks).
+    Update,
     Search { query: String, music: Option<(String, String)> },
     Lookup { id: String },
     Download { video: Video },
+    /// Remove the downloaded yt-dlp (Linux).
     Remove,
+}
+
+impl Job {
+    /// Runs without showing anything unless it changes the yt-dlp state.
+    fn quiet(&self) -> bool {
+        matches!(self, Job::Check { force: false })
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Busy {
     Setup,
+    Check,
+    Update,
     Search,
     Lookup,
     Download(String),
@@ -770,14 +1041,28 @@ pub struct Service {
     pub state: Arc<Mutex<State>>,
     tx: Sender<Job>,
     cancel: Arc<AtomicBool>,
-    pub tool_dir: PathBuf,
+    /// yt-dlp came with FreeMic (Windows) instead of being downloaded by it.
+    pub bundled: bool,
+    /// Why yt-dlp can't be used when it's missing.
+    pub missing: String,
 }
 
 impl Service {
-    /// `tools_dir`: where yt-dlp lives; `out_dir`: where downloads go.
+    /// `tools_dir`: FreeMic's tools folder; `out_dir`: where downloads go.
     pub fn start(tools_dir: PathBuf, out_dir: PathBuf, notify: Arc<dyn Fn() + Send + Sync>) -> Service {
-        let tool = Tool::new(tools_dir.clone());
-        let state = Arc::new(Mutex::new(State { tool: tool.state(), ..Default::default() }));
+        let tool = Tool::for_app(tools_dir.clone());
+        #[cfg(windows)]
+        if tool.exe().parent() != Some(tools_dir.as_path()) {
+            remove_downloaded_copy(&tools_dir);
+        }
+        let (bundled, missing) = (tool.is_bundled(), tool.missing_message());
+        let st = tool.state();
+        match &st {
+            Some(s) => log::info!("yt-dlp: {} ({})", tool.exe().display(), if s.version.is_empty() { "version unknown" } else { &s.version }),
+            None if bundled => log::warn!("yt-dlp: {} is missing", tool.exe().display()),
+            None => log::info!("yt-dlp: not set up yet"),
+        }
+        let state = Arc::new(Mutex::new(State { tool: st, ..Default::default() }));
         let (tx, rx) = channel();
         let cancel = Arc::new(AtomicBool::new(false));
         {
@@ -787,17 +1072,19 @@ impl Service {
                 .spawn(move || worker(rx, tool, out_dir, state, cancel, notify))
                 .expect("spawn youtube worker");
         }
-        Service { state, tx, cancel, tool_dir: tools_dir }
+        Service { state, tx, cancel, bundled, missing }
     }
 
     pub fn send(&self, job: Job) {
-        self.cancel.store(false, Ordering::Relaxed);
-        {
+        if !job.quiet() {
+            self.cancel.store(false, Ordering::Relaxed);
             let mut st = self.state.lock().unwrap();
             st.error = None;
             st.progress = None;
             st.busy = Some(match &job {
-                Job::Setup { .. } | Job::Remove => Busy::Setup,
+                Job::Setup | Job::Remove => Busy::Setup,
+                Job::Check { .. } => Busy::Check,
+                Job::Update => Busy::Update,
                 Job::Search { .. } => Busy::Search,
                 Job::Lookup { .. } => Busy::Lookup,
                 Job::Download { video } => Busy::Download(video.id.clone()),
@@ -826,26 +1113,34 @@ fn worker(rx: Receiver<Job>, tool: Tool, out_dir: PathBuf, state: Arc<Mutex<Stat
         state.lock().unwrap().progress = p;
         notify();
     };
+    let set_tool = |st: &ToolState| {
+        set(&|s| {
+            s.tool = Some(st.clone());
+            s.progress = None;
+        })
+    };
     while let Ok(job) = rx.recv() {
         let result: Result<(), String> = (|| {
-            if let Job::Remove = job {
-                tool.remove();
-                set(&|s| s.tool = None);
-                return Ok(());
+            match &job {
+                Job::Remove => {
+                    #[cfg(not(windows))]
+                    tool.remove();
+                    set(&|s| s.tool = tool.state());
+                }
+                Job::Setup => set_tool(&tool.setup(&progress, &cancel)?),
+                Job::Check { force } => set_tool(&tool.check(*force)?),
+                Job::Update => set_tool(&tool.update(&progress, &cancel)?),
+                Job::Search { .. } | Job::Lookup { .. } | Job::Download { .. } => {
+                    if tool.state().is_none() {
+                        set(&|s| s.busy = Some(Busy::Setup));
+                    }
+                    let st = tool.setup(&progress, &cancel)?;
+                    // Only looks for a newer yt-dlp; never installs one by itself.
+                    set_tool(&tool.check(false).unwrap_or(st));
+                }
             }
-            let force = matches!(job, Job::Setup { force: true });
-            let need_setup = !tool.exe().is_file();
-            if need_setup {
-                set(&|s| s.busy = Some(Busy::Setup));
-            }
-            let st = tool.ensure(force, &progress, &cancel)?;
-            set(&|s| {
-                s.tool = Some(st.clone());
-                s.progress = None;
-            });
             let exe = tool.exe();
             match &job {
-                Job::Setup { .. } | Job::Remove => {}
                 Job::Search { query, music } => {
                     set(&|s| s.busy = Some(Busy::Search));
                     let mut v = search(&exe, query, &cancel)?;
@@ -874,9 +1169,16 @@ fn worker(rx: Receiver<Job>, tool: Tool, out_dir: PathBuf, state: Arc<Mutex<Stat
                     log::info!("downloaded YouTube video {} to {}", video.id, path.display());
                     set(&|s| s.finished.push(Finished { video: video.clone(), path: path.clone() }));
                 }
+                _ => {}
             }
             Ok(())
         })();
+        if job.quiet() {
+            if let Err(e) = result {
+                log::warn!("YouTube: {e}");
+            }
+            continue;
+        }
         let cancelled = cancel.load(Ordering::Relaxed);
         set(&|s| {
             s.busy = None;
@@ -1025,6 +1327,30 @@ mod tests {
         assert!(is_terminal("ERROR: This video is private"));
         assert!(!is_terminal("ERROR: HTTP Error 403: Forbidden"));
         assert_eq!(last_error_line("WARNING: a\nERROR: first\nERROR: second\n"), "ERROR: second");
+    }
+
+    #[test]
+    fn updates_are_offered_only_for_newer_versions() {
+        assert!(newer("2026.11.02", "2026.10.26"));
+        assert!(newer("2026.10.26.1", "2026.10.26"));
+        assert!(newer("2027.01.01", "2026.12.31"));
+        assert!(!newer("2026.10.26", "2026.10.26"));
+        assert!(!newer("2026.10.21", "2026.10.26"));
+        let st = |v: &str, l: Option<&str>| ToolState { version: v.into(), checked: 1, latest: l.map(String::from) };
+        assert_eq!(st("2026.10.21", Some("2026.10.26")).update(), Some("2026.10.26"));
+        assert_eq!(st("2026.10.26", Some("2026.10.26")).update(), None);
+        assert_eq!(st("2026.10.26", None).update(), None);
+        // A state file written by FreeMic 0.2.0 (no "latest") still loads.
+        let old: ToolState = serde_json::from_str(r#"{"version":"2026.10.26","checked":1793470464}"#).unwrap();
+        assert_eq!(old, ToolState { version: "2026.10.26".into(), checked: 1793470464, latest: None });
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn windows_version_resource_is_read() {
+        let notepad = std::path::Path::new(r"C:\Windows\System32\notepad.exe");
+        assert!(file_version(notepad).is_some_and(|v| v.chars().next().is_some_and(|c| c.is_ascii_digit())));
+        assert_eq!(file_version(std::path::Path::new(r"C:\does-not-exist.exe")), None);
     }
 }
 

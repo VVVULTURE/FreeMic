@@ -24,8 +24,14 @@ at compile time; the source tarball and packaging scripts include `assets/`.
 cargo build --release
 ./target/release/freemic          # Windows: target\release\freemic.exe
 cargo test --release              # unit, format, pipeline and UI layout tests (no audio devices used)
-cargo test --release --test youtube_live -- --ignored --nocapture   # live YouTube test (needs the internet)
+cargo test --release --test youtube_live -- --ignored --nocapture --test-threads 1   # live YouTube tests (need the internet)
 ```
+
+On Windows the live tests need an official `yt-dlp.exe`: set
+`FREEMIC_YTDLP` to one (e.g. `dist\yt-dlp\<version>\yt-dlp.exe` from the
+package build), and for `yt_dlp_self_update` set `FREEMIC_YTDLP_OLD` to an
+older official release. A development build looks for `yt-dlp.exe` next to
+itself; set `FREEMIC_YTDLP` to use the YouTube page from `target\release`.
 
 `src/bin/fmtest.rs` is a developer tool built alongside it (`fmtest list`,
 `record`, `analyze`, `tone`, `icons`), used by the end-to-end tests.
@@ -40,9 +46,20 @@ powershell -ExecutionPolicy Bypass -File packaging\windows\build.ps1
 
 Produces `dist\FreeMic-<ver>-windows-setup.exe` (Inno Setup,
 `packaging\windows\freemic.iss`) and `dist\FreeMic-<ver>-windows-portable.zip`.
-The executable gets its icon and version information from `build.rs`
-(`packaging/assets/freemic.ico`). `tools/windows/test_installer.ps1` tests
-the installer (see [TESTING.md](TESTING.md)).
+The executable gets its icon, version information and application manifest
+(`packaging/windows/freemic.manifest`: `asInvoker`, Windows 10/11) from
+`build.rs`.
+
+Both packages include the official `yt-dlp.exe`. The script downloads it
+from the newest yt-dlp release (or `-YtDlpVersion 2026.10.26`), refuses it
+unless it matches the SHA-256 in that release's `SHA2-256SUMS`, and adds
+yt-dlp's `LICENSE`, `THIRD_PARTY_LICENSES.txt` and a source note
+(`yt-dlp-SOURCE.txt`): the standalone build as a whole is GPL-3.0-or-later,
+so its license texts and source location must ship with it. Downloads are
+kept in `dist\yt-dlp\<version>\`.
+
+`tools/windows/test_installer.ps1`, `test_portable.ps1` and
+`youtube_test.ps1` test the packages (see [TESTING.md](TESTING.md)).
 
 ### Linux
 
