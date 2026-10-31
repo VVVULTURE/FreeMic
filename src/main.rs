@@ -8,7 +8,7 @@ use freemic::audio::engine::Engine;
 use freemic::audio::Shared;
 use freemic::config::{self, Board, Settings};
 use freemic::paths::Paths;
-use freemic::ui::{FreeMicApp, Targets};
+use freemic::ui::{FreeMicApp, StartOptions, Targets};
 use freemic::{icon, ipc, logging, platform};
 
 const HELP: &str = "FreeMic - soundboard and virtual microphone
@@ -131,7 +131,7 @@ fn main() {
         .with_title("FreeMic")
         .with_app_id("freemic")
         .with_inner_size(size)
-        .with_min_inner_size([420.0, 300.0])
+        .with_min_inner_size([480.0, 400.0])
         .with_icon(Arc::new(icon::window_icon()))
         .with_drag_and_drop(true);
     if std::env::var_os("FREEMIC_TEST_WINDOW").is_some() {
@@ -145,7 +145,8 @@ fn main() {
         options,
         Box::new(move |cc| {
             *ctx_slot.lock().unwrap() = Some(cc.egui_ctx.clone());
-            Ok(Box::new(FreeMicApp::new(cc, paths, settings, board, eng, targets, minimized, warnings)))
+            let opts = StartOptions { start_minimized: minimized, load_warnings: warnings, global_hotkeys: true };
+            Ok(Box::new(FreeMicApp::new(&cc.egui_ctx, paths, settings, board, eng, targets, opts)))
         }),
     );
     if let Err(e) = result {

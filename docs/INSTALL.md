@@ -17,7 +17,7 @@ Windows 10 and Ubuntu 22.04+ should work (same APIs; Ubuntu 22.04 has glibc
 
 ## Windows installer
 
-1. Run `FreeMic-0.1.0-windows-setup.exe`. It installs for your user account
+1. Run `FreeMic-0.2.0-windows-setup.exe`. It installs for your user account
    only (into `%LOCALAPPDATA%\Programs\FreeMic`) and doesn't need
    administrator rights.
 2. If no VB-CABLE driver is found, the installer offers a checkbox:
@@ -29,7 +29,7 @@ Windows 10 and Ubuntu 22.04+ should work (same APIs; Ubuntu 22.04 has glibc
 3. Start FreeMic from the Start menu.
 
 Silent install (IT/scripts):
-`FreeMic-0.1.0-windows-setup.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART`
+`FreeMic-0.2.0-windows-setup.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART`
 (add `/DIR="C:\path"` to choose the folder). Silent installs never download
 VB-CABLE.
 
@@ -48,7 +48,7 @@ FreeMic → **Uninstall FreeMic**. The uninstaller:
 
 ## Windows portable
 
-1. Extract `FreeMic-0.1.0-windows-portable.zip` anywhere, including a USB
+1. Extract `FreeMic-0.2.0-windows-portable.zip` anywhere, including a USB
    stick.
 2. Run `FreeMic.exe`.
 
@@ -94,7 +94,7 @@ be chosen by hand under **Settings → Send the mix to**.
 ## Debian / Ubuntu
 
 ```sh
-sudo apt install ./freemic_0.1.0-1_amd64.deb
+sudo apt install ./freemic_0.2.0-1_amd64.deb
 ```
 
 `apt` installs the needed libraries (libpulse0, X11/Wayland and GL
@@ -116,10 +116,10 @@ rm -rf ~/.config/freemic ~/.local/share/freemic ~/.config/autostart/freemic.desk
 Prebuilt package from the release page:
 
 ```sh
-sudo pacman -U freemic-0.1.0-1-x86_64.pkg.tar.zst
+sudo pacman -U freemic-0.2.0-1-x86_64.pkg.tar.zst
 ```
 
-Or build it yourself: put `PKGBUILD` and `freemic-0.1.0.tar.gz` in one folder and run:
+Or build it yourself: put `PKGBUILD` and `freemic-0.2.0.tar.gz` in one folder and run:
 
 ```sh
 makepkg -si
@@ -135,8 +135,8 @@ Uninstall: `sudo pacman -R freemic`, then optionally
 ## Linux portable
 
 ```sh
-tar xzf freemic-0.1.0-linux-x86_64.tar.gz
-cd freemic-0.1.0-linux-x86_64
+tar xzf freemic-0.2.0-linux-x86_64.tar.gz
+cd freemic-0.2.0-linux-x86_64
 ./freemic
 ```
 
@@ -164,11 +164,15 @@ pactl unload-module <number>                      # for each line
 
 ## Where FreeMic stores data
 
-| | Settings (`settings.json`, `soundboard.json`) | Imported sounds (`sounds/`) and `freemic.log` |
+| | Settings (`settings.json`, `soundboard.json`) | Sounds (`sounds/`, YouTube audio in `sounds/youtube/`), yt-dlp (`tools/`) and `freemic.log` |
 |---|---|---|
 | Windows (installed) | `%APPDATA%\FreeMic` | `%APPDATA%\FreeMic` |
 | Linux (installed) | `~/.config/freemic` | `~/.local/share/freemic` |
 | Portable (`portable.txt` or a `data` folder next to the program) | `data\` | `data\` |
+
+yt-dlp (`tools/yt-dlp.exe` on Windows, `tools/yt-dlp_linux` on Linux) is only
+there if you used the YouTube page; removing FreeMic's data folder removes it
+too. **Settings → YouTube downloads → Remove yt-dlp** deletes it on its own.
 
 If a settings file is damaged, FreeMic renames it to
 `*.damaged-<time>.json`, starts with defaults and tells you.

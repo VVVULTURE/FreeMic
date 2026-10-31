@@ -67,6 +67,17 @@ pub fn import(paths: &Paths, board: &mut Board, files: &[PathBuf], copy: bool, m
     report
 }
 
+/// Add a file that is already inside the library (e.g. a YouTube download).
+pub fn add_library_file(paths: &Paths, board: &mut Board, file: &Path, name: &str, mode: PlayMode) -> Result<u64, String> {
+    let duration = decode::probe(file)?.duration_secs;
+    let id = board.add(name.trim().chars().take(80).collect(), paths.store(file), mode);
+    if let Some(s) = board.get_mut(id) {
+        s.duration = duration;
+    }
+    log::info!("added library file {} as sound {id}", file.display());
+    Ok(id)
+}
+
 /// Remove the library copy of a sound file (only files FreeMic copied itself).
 fn delete_library_copy(paths: &Paths, stored: &Path) {
     if stored.is_relative() {

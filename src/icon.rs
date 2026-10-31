@@ -2,7 +2,7 @@
 
 use eframe::egui::IconData;
 
-/// Render the icon as RGBA at `size` x `size` (a microphone on a rounded blue tile).
+/// Render the icon as RGBA at `size` x `size` (a white microphone on a rounded coral tile).
 pub fn rgba(size: u32) -> Vec<u8> {
     let s = size as f32;
     let mut px = vec![0u8; (size * size * 4) as usize];
@@ -22,7 +22,7 @@ pub fn rgba(size: u32) -> Vec<u8> {
             let mut c = [0.0f32; 4];
             if bg > 0.0 {
                 let t = y / s;
-                c = [0.23 + 0.10 * t, 0.42 - 0.10 * t, 0.86 - 0.15 * t, bg];
+                c = [0.969 - 0.098 * t, 0.529 - 0.153 * t, 0.345 - 0.141 * t, bg];
             }
             // Microphone capsule.
             let cap = aa(sdf_round_rect(x, y, s * 0.5, s * 0.38, s * 0.13, s * 0.22, s * 0.13) / (s / 64.0));

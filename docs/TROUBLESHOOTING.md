@@ -100,6 +100,30 @@ file** (`freemic.log`; the previous run's log is kept as `freemic.old.log`).
   "Copy added files into FreeMic's library" was off). Right-click →
   **Replace audio file…**.
 
+## YouTube page
+
+- **"Could not reach GitHub" during setup**: FreeMic downloads yt-dlp from
+  github.com over HTTPS. Check your internet connection, proxy or firewall.
+  Once yt-dlp is installed, a failed update check doesn't stop it from
+  working.
+- **"failed its checksum"**: the downloaded yt-dlp didn't match the SHA-256
+  published with the release, so nothing was installed. Try again; if it
+  keeps happening, something between you and GitHub is changing downloads.
+- **"YouTube blocked this attempt (bot check or session error)"**: YouTube
+  sometimes refuses automated requests. Wait a moment and try again. If it
+  keeps happening, use **Settings → YouTube downloads → Check for update**;
+  new yt-dlp releases follow YouTube's changes. FreeMic already tries five
+  different YouTube player clients before giving up.
+- **"YouTube offers no AAC audio for this video"**: FreeMic plays the AAC
+  stream directly and doesn't convert audio. Try another upload of the same
+  sound.
+- **"This link isn't a single video"**: FreeMic only downloads one video at a
+  time. Open the video itself and copy its link (it contains `watch?v=`,
+  `youtu.be/` or `/shorts/`).
+- **"private, members-only or has been removed"**: the video can't be
+  downloaded.
+- Details of each attempt (the yt-dlp error line) are in `freemic.log`.
+
 ## FreeMic is already running
 
 Only one FreeMic per user runs at a time. Look for its window in the taskbar,

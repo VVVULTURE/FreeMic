@@ -15,7 +15,13 @@ microphone, and people hear your voice and your sounds together.
 ## Features
 
 - Button grid: import MP3, WAV, OGG (Vorbis), FLAC and M4A (AAC/ALAC) by
-  clicking **+ Add sounds** or by dropping files onto the window.
+  clicking **Add sounds** or by dropping files onto the window.
+- **Sounds from YouTube**: search YouTube (or paste a link) on the YouTube
+  page and add the audio of one video to the board. Music search works like
+  [YT-Downloader](https://github.com/VVVULTURE/YT-Downloader). The audio is
+  stored locally; playlists are never downloaded. Uses
+  [yt-dlp](https://github.com/yt-dlp/yt-dlp), fetched from its official
+  releases on first use and checked against its published SHA-256.
 - Click a button to play it, and click it again to stop it. **Stop** (or a
   hotkey) stops everything.
 - Only one sound plays at a time. Starting a new sound replaces the current
@@ -30,6 +36,8 @@ microphone, and people hear your voice and your sounds together.
   never plays through your speakers unless you ask it to.
 - Global hotkeys (Windows, and Linux on X11). On Wayland, and for Stream Deck or
   scripts, use `freemic --play "Name"` and `freemic --stop`.
+- Dark and light themes, a layout that adapts to any window from 480 × 400
+  up, and automated checks that no text overlaps or is cut off at any size.
 - Settings are saved automatically. If an audio device disappears, FreeMic
   recovers when it comes back. Sound files are copied into FreeMic's own
   library, so moving the originals doesn't break your board.
@@ -58,11 +66,11 @@ Download the file for your system from the
 
 | Platform | Download | Notes |
 |---|---|---|
-| Windows | `FreeMic-0.1.0-windows-setup.exe` | Per-user install, no admin needed for FreeMic itself. Can also set up VB-CABLE. |
-| Windows portable | `FreeMic-0.1.0-windows-portable.zip` | Unzip and run `FreeMic.exe`. Settings stay in the folder. VB-CABLE still has to be installed separately. |
-| Debian 12+ / Ubuntu 22.04+ | `freemic_0.1.0-1_amd64.deb` | `sudo apt install ./freemic_0.1.0-1_amd64.deb` (tested on Debian 12 and 13) |
-| Arch Linux | `PKGBUILD` + `freemic-0.1.0.tar.gz` | `makepkg -si` in the folder with both files |
-| Linux portable | `freemic-0.1.0-linux-x86_64.tar.gz` | Extract and run `./freemic` (glibc 2.35 or newer). |
+| Windows | `FreeMic-0.2.0-windows-setup.exe` | Per-user install, no admin needed for FreeMic itself. Can also set up VB-CABLE. |
+| Windows portable | `FreeMic-0.2.0-windows-portable.zip` | Unzip and run `FreeMic.exe`. Settings stay in the folder. VB-CABLE still has to be installed separately. |
+| Debian 12+ / Ubuntu 22.04+ | `freemic_0.2.0-1_amd64.deb` | `sudo apt install ./freemic_0.2.0-1_amd64.deb` (tested on Debian 12 and 13) |
+| Arch Linux | `PKGBUILD` + `freemic-0.2.0.tar.gz` | `makepkg -si` in the folder with both files |
+| Linux portable | `freemic-0.2.0-linux-x86_64.tar.gz` | Extract and run `./freemic` (glibc 2.35 or newer). |
 
 Step-by-step instructions, uninstalling and cleanup are in
 [docs/INSTALL.md](docs/INSTALL.md).
@@ -71,7 +79,7 @@ Step-by-step instructions, uninstalling and cleanup are in
 
 1. Start FreeMic. On Windows, if no VB-CABLE is found, the Settings page
    tells you how to set it up.
-2. Add sounds (**+ Add sounds** or drag and drop).
+2. Add sounds (**Add sounds**, drag and drop, or the **YouTube** page).
 3. In Discord (Settings → Voice & Video → Input Device) or your game, choose
    **CABLE Output** (Windows) or **FreeMic Virtual Microphone** (Linux).
 4. Click a button. The other people hear the sound together with your voice.
@@ -103,6 +111,11 @@ Windows, Unix socket on Linux; local user only).
 - On Linux the virtual microphone exists only while FreeMic runs. If FreeMic
   crashes, the leftover devices are removed the next time it starts.
 - One sound at a time, by design.
+- The YouTube page needs an internet connection, downloads yt-dlp (about
+  24 MB on Windows, 41 MB on Linux) the first time, and saves YouTube's AAC
+  audio as is (no conversion). Videos without an AAC stream can't be added.
+  YouTube occasionally blocks automated downloads; FreeMic retries with other
+  player clients and keeps yt-dlp up to date.
 
 Also see [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md).
 

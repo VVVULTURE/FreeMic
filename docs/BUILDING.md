@@ -11,14 +11,20 @@
 - **Arch:** `sudo pacman -S --needed base-devel rust libpulse`
 
 The GUI libraries (X11, Wayland, xkbcommon, OpenGL/EGL) are loaded at run
-time, so their development packages aren't needed for building.
+time, so their development packages aren't needed for building. HTTPS for
+the YouTube page uses rustls with the `ring` crypto backend, which compiles
+some C and assembly with the C compiler listed above (no OpenSSL needed).
+
+`assets/fonts/InterVariable.ttf` (the UI font) is embedded into the program
+at compile time; the source tarball and packaging scripts include `assets/`.
 
 ## Build and run
 
 ```sh
 cargo build --release
 ./target/release/freemic          # Windows: target\release\freemic.exe
-cargo test --release              # unit, format and pipeline tests (no audio devices used)
+cargo test --release              # unit, format, pipeline and UI layout tests (no audio devices used)
+cargo test --release --test youtube_live -- --ignored --nocapture   # live YouTube test (needs the internet)
 ```
 
 `src/bin/fmtest.rs` is a developer tool built alongside it (`fmtest list`,
@@ -75,6 +81,13 @@ The Arch package is built on Arch from the source tarball with `makepkg`.
 `freemic.ico`). They're drawn by `src/icon.rs`, the same code that draws the
 window icon. Regenerate them with `cargo run --release --bin fmtest -- icons
 packaging/assets`.
+
+## Fonts
+
+`assets/fonts/InterVariable.ttf` and `Inter-LICENSE.txt` come unmodified
+from the official [Inter 4.1 release](https://github.com/rsms/inter/releases/tag/v4.1)
+(`Inter-4.1.zip`, SHA-256
+`9883fdd4a49d4fb66bd8177ba6625ef9a64aa45899767dde3d36aa425756b11e`).
 
 ## Third-party notices
 

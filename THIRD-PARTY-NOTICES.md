@@ -5,6 +5,9 @@ each under its own license (identifier shown; full texts are in each crate's sou
 
 * **Symphonia** (MPL-2.0) is used unmodified; its source code is available at https://github.com/pdeljanov/Symphonia.
 * egui's bundled fonts: Ubuntu font (Ubuntu Font Licence 1.0), Hack and emoji fonts (OFL-1.1 / MIT / Apache-2.0).
+* **Inter** typeface 4.1 (SIL Open Font License 1.1), Copyright (c) 2016 The Inter Project Authors, https://github.com/rsms/inter. Embedded unmodified; the license text is in `assets/fonts/Inter-LICENSE.txt`.
+* **yt-dlp** (The Unlicense, public domain) is **not** included. When you use the YouTube page, FreeMic downloads the official build from https://github.com/yt-dlp/yt-dlp/releases and runs it as a separate program. Its standalone builds contain Python and other components under their own licenses (see yt-dlp's repository).
+* The YouTube integration ports the search and download logic of YT-Downloader (https://github.com/VVVULTURE/YT-Downloader) by the same author.
 * On Linux FreeMic links dynamically to the system's libpulse (LGPL-2.1+).
 * VB-CABLE is **not** included or redistributed. It is a separate product of VB-Audio Software (donationware), downloaded from vb-audio.com only when you choose to.
 
@@ -20,22 +23,29 @@ each under its own license (identifier shown; full texts are in each crate's sou
 | audioadapter | 5.0.0 | MIT OR Apache-2.0 | Linux, Windows | https://github.com/HEnquist/audioadapter-rs |
 | audioadapter-buffers | 5.2.0 | MIT OR Apache-2.0 | Linux, Windows | https://github.com/HEnquist/audioadapter-buffers-rs |
 | audioadapter-sample | 5.2.0 | MIT OR Apache-2.0 | Linux, Windows | https://github.com/HEnquist/audioadapter-sample-rs |
+| base64 | 0.23.1 | MIT OR Apache-2.0 | Linux, Windows | https://github.com/marshallpierce/rust-base64 |
 | bit-set | 0.10.0 | Apache-2.0 OR MIT | Linux, Windows | https://github.com/contain-rs/bit-set |
 | bit-vec | 0.9.1 | Apache-2.0 OR MIT | Linux, Windows | https://github.com/contain-rs/bit-vec |
 | bitflags | 2.13.2 | MIT OR Apache-2.0 | Linux, Windows | https://github.com/bitflags/bitflags |
+| block-buffer | 0.12.1 | MIT OR Apache-2.0 | Linux, Windows | https://github.com/RustCrypto/utils |
 | bytemuck | 1.25.2 | Zlib OR Apache-2.0 OR MIT | Linux, Windows | https://github.com/Lokathor/bytemuck |
 | bytemuck_derive | 1.12.1 | Zlib OR Apache-2.0 OR MIT | Linux, Windows | https://github.com/Lokathor/bytemuck |
 | byteorder-lite | 0.1.0 | Unlicense OR MIT | Linux, Windows | https://github.com/image-rs/byteorder-lite |
+| bytes | 1.12.1 | MIT | Linux, Windows | https://github.com/tokio-rs/bytes |
 | calloop | 0.13.0 | MIT | Linux | https://github.com/Smithay/calloop |
 | calloop-wayland-source | 0.3.0 | MIT | Linux | https://github.com/smithay/calloop-wayland-source |
 | cfg-if | 1.0.5 | MIT OR Apache-2.0 | Linux, Windows | https://github.com/rust-lang/cfg-if |
 | clipboard-win | 5.4.3 | BSL-1.0 | Windows | https://github.com/DoumanAsh/clipboard-win |
 | codespan-reporting | 0.13.1 | Apache-2.0 | Linux, Windows | https://github.com/brendanzab/codespan |
 | color | 0.3.3 | Apache-2.0 OR MIT | Linux, Windows | https://github.com/linebender/color |
+| const-oid | 0.10.2 | Apache-2.0 OR MIT | Linux, Windows | https://github.com/RustCrypto/formats |
+| cpufeatures | 0.3.1 | MIT OR Apache-2.0 | Linux, Windows | https://github.com/RustCrypto/utils |
 | crc32fast | 1.5.3 | MIT OR Apache-2.0 | Linux, Windows | https://github.com/srijs/rust-crc32fast |
 | crossbeam-channel | 0.5.17 | MIT OR Apache-2.0 | Linux, Windows | https://github.com/crossbeam-rs/crossbeam |
 | crossbeam-utils | 0.8.23 | MIT OR Apache-2.0 | Linux, Windows | https://github.com/crossbeam-rs/crossbeam |
+| crypto-common | 0.2.2 | MIT OR Apache-2.0 | Linux, Windows | https://github.com/RustCrypto/traits |
 | cursor-icon | 1.2.0 | MIT OR Apache-2.0 OR Zlib | Linux, Windows | https://github.com/rust-windowing/cursor-icon |
+| digest | 0.11.3 | MIT OR Apache-2.0 | Linux, Windows | https://github.com/RustCrypto/traits |
 | dlib | 0.5.3 | MIT | Linux | https://github.com/elinorbgr/dlib |
 | document-features | 0.2.12 | MIT OR Apache-2.0 | Linux, Windows | https://github.com/slint-ui/document-features |
 | downcast-rs | 1.2.1 | MIT/Apache-2.0 | Linux | https://github.com/marcianx/downcast-rs |
@@ -64,6 +74,7 @@ each under its own license (identifier shown; full texts are in each crate's sou
 | foldhash | 0.2.0 | Zlib | Linux, Windows | https://github.com/orlp/foldhash |
 | font-types | 0.12.7 | MIT OR Apache-2.0 | Linux, Windows | https://github.com/googlefonts/fontations |
 | gethostname | 1.1.0 | Apache-2.0 | Linux | https://codeberg.org/swsnr/gethostname.rs.git |
+| getrandom | 0.2.17 | MIT OR Apache-2.0 | Linux, Windows | https://github.com/rust-random/getrandom |
 | getrandom | 0.3.4 | MIT OR Apache-2.0 | Linux, Windows | https://github.com/rust-random/getrandom |
 | glifo | 0.3.0 | Apache-2.0 OR MIT | Linux, Windows | https://github.com/linebender/vello |
 | global-hotkey | 0.9.0 | Apache-2.0 OR MIT | Linux, Windows | https://github.com/tauri-apps/global-hotkey |
@@ -78,6 +89,9 @@ each under its own license (identifier shown; full texts are in each crate's sou
 | harfrust | 0.12.0 | MIT | Linux, Windows | https://github.com/harfbuzz/harfrust |
 | hashbrown | 0.15.5 | MIT OR Apache-2.0 | Linux | https://github.com/rust-lang/hashbrown |
 | hashbrown | 0.17.1 | MIT OR Apache-2.0 | Linux, Windows | https://github.com/rust-lang/hashbrown |
+| http | 1.5.0 | MIT OR Apache-2.0 | Linux, Windows | https://github.com/hyperium/http |
+| httparse | 1.10.1 | MIT OR Apache-2.0 | Linux, Windows | https://github.com/seanmonstar/httparse |
+| hybrid-array | 0.4.15 | MIT OR Apache-2.0 | Linux, Windows | https://github.com/RustCrypto/hybrid-array |
 | image | 0.25.10 | MIT OR Apache-2.0 | Linux, Windows | https://github.com/image-rs/image |
 | indexmap | 2.14.2 | Apache-2.0 OR MIT | Linux, Windows | https://github.com/indexmap-rs/indexmap |
 | itertools | 0.15.0 | MIT OR Apache-2.0 | Linux, Windows | https://github.com/rust-itertools/itertools |
@@ -114,7 +128,7 @@ each under its own license (identifier shown; full texts are in each crate's sou
 | parking_lot | 0.12.5 | MIT OR Apache-2.0 | Linux, Windows | https://github.com/Amanieu/parking_lot |
 | parking_lot_core | 0.9.12 | MIT OR Apache-2.0 | Linux, Windows | https://github.com/Amanieu/parking_lot |
 | peniko | 0.6.1 | Apache-2.0 OR MIT | Linux, Windows | https://github.com/linebender/peniko |
-| percent-encoding | 2.3.2 | MIT OR Apache-2.0 | Linux | https://github.com/servo/rust-url/ |
+| percent-encoding | 2.3.2 | MIT OR Apache-2.0 | Linux, Windows | https://github.com/servo/rust-url/ |
 | petgraph | 0.8.3 | MIT OR Apache-2.0 | Linux | https://github.com/petgraph/petgraph |
 | pin-project-lite | 0.2.17 | Apache-2.0 OR MIT | Linux, Windows | https://github.com/taiki-e/pin-project-lite |
 | png | 0.18.1 | MIT OR Apache-2.0 | Linux, Windows | https://github.com/image-rs/image-png |
@@ -134,6 +148,7 @@ each under its own license (identifier shown; full texts are in each crate's sou
 | regex-lite | 0.1.9 | MIT OR Apache-2.0 | Linux, Windows | https://github.com/rust-lang/regex |
 | renderdoc-sys | 1.1.0 | MIT OR Apache-2.0 | Linux, Windows | https://github.com/ebkalderon/renderdoc-rs |
 | rfd | 0.17.2 | MIT | Linux, Windows | https://github.com/PolyMeilex/rfd |
+| ring | 0.17.14 | Apache-2.0 AND ISC | Linux, Windows | https://github.com/briansmith/ring |
 | rtrb | 0.4.1 | MIT OR Apache-2.0 | Linux, Windows | https://github.com/mgeier/rtrb |
 | rubato | 5.0.1 | MIT OR Apache-2.0 | Linux, Windows | https://github.com/HEnquist/rubato |
 | rustc-hash | 1.1.0 | Apache-2.0/MIT | Linux, Windows | https://github.com/rust-lang-nursery/rustc-hash |
@@ -141,6 +156,9 @@ each under its own license (identifier shown; full texts are in each crate's sou
 | rustfft | 6.4.1 | MIT OR Apache-2.0 | Linux, Windows | https://github.com/ejmahler/RustFFT |
 | rustix | 0.38.44 | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT | Linux | https://github.com/bytecodealliance/rustix |
 | rustix | 1.1.6 | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT | Linux | https://github.com/bytecodealliance/rustix |
+| rustls | 0.23.46 | Apache-2.0 OR ISC OR MIT | Linux, Windows | https://github.com/rustls/rustls |
+| rustls-pki-types | 1.15.1 | MIT OR Apache-2.0 | Linux, Windows | https://github.com/rustls/pki-types |
+| rustls-webpki | 0.103.16 | ISC | Linux, Windows | https://github.com/rustls/webpki |
 | scoped-tls | 1.0.1 | MIT/Apache-2.0 | Linux | https://github.com/alexcrichton/scoped-tls |
 | scopeguard | 1.2.0 | MIT OR Apache-2.0 | Linux, Windows | https://github.com/bluss/scopeguard |
 | self_cell | 1.3.0 | Apache-2.0 OR GPL-2.0-only | Linux, Windows | https://github.com/Voultapher/self_cell |
@@ -148,6 +166,7 @@ each under its own license (identifier shown; full texts are in each crate's sou
 | serde_core | 1.0.229 | MIT OR Apache-2.0 | Linux, Windows | https://github.com/serde-rs/serde |
 | serde_derive | 1.0.229 | MIT OR Apache-2.0 | Linux, Windows | https://github.com/serde-rs/serde |
 | serde_json | 1.0.154 | MIT OR Apache-2.0 | Linux, Windows | https://github.com/serde-rs/json |
+| sha2 | 0.11.1 | MIT OR Apache-2.0 | Linux, Windows | https://github.com/RustCrypto/hashes |
 | simd-adler32 | 0.3.10 | MIT | Linux, Windows | https://github.com/mcountryman/simd-adler32 |
 | skrifa | 0.44.0 | MIT OR Apache-2.0 | Linux, Windows | https://github.com/googlefonts/fontations |
 | slab | 0.4.12 | MIT | Linux | https://github.com/tokio-rs/slab |
@@ -156,6 +175,7 @@ each under its own license (identifier shown; full texts are in each crate's sou
 | smol_str | 0.2.2 | MIT OR Apache-2.0 | Linux, Windows | https://github.com/rust-analyzer/smol_str |
 | static_assertions | 1.1.0 | MIT OR Apache-2.0 | Linux, Windows | https://github.com/nvzqz/static-assertions-rs |
 | strength_reduce | 0.2.4 | MIT OR Apache-2.0 | Linux, Windows | http://github.com/ejmahler/strength_reduce |
+| subtle | 2.6.1 | BSD-3-Clause | Linux, Windows | https://github.com/dalek-cryptography/subtle |
 | symphonia | 0.6.1 | MPL-2.0 | Linux, Windows | https://github.com/pdeljanov/Symphonia |
 | symphonia-bundle-flac | 0.6.1 | MPL-2.0 | Linux, Windows | https://github.com/pdeljanov/Symphonia |
 | symphonia-bundle-mp3 | 0.6.1 | MPL-2.0 | Linux, Windows | https://github.com/pdeljanov/Symphonia |
@@ -182,11 +202,16 @@ each under its own license (identifier shown; full texts are in each crate's sou
 | transpose | 0.2.3 | MIT OR Apache-2.0 | Linux, Windows | https://github.com/ejmahler/transpose |
 | tree_magic_mini | 3.2.2 | MIT | Linux | https://github.com/mbrubeck/tree_magic/ |
 | type-map | 0.5.1 | MIT/Apache-2.0 | Linux, Windows | https://github.com/kardeiz/type-map |
+| typenum | 1.20.1 | MIT OR Apache-2.0 | Linux, Windows | https://github.com/paholg/typenum |
 | unicode-general-category | 1.1.0 | Apache-2.0 | Linux, Windows | https://github.com/yeslogic/unicode-general-category |
 | unicode-ident | 1.0.27 | (MIT OR Apache-2.0) AND Unicode-3.0 | Linux, Windows | https://github.com/dtolnay/unicode-ident |
 | unicode-properties | 0.1.4 | MIT/Apache-2.0 | Linux, Windows | https://github.com/unicode-rs/unicode-properties |
 | unicode-segmentation | 1.13.3 | MIT OR Apache-2.0 | Linux, Windows | https://github.com/unicode-rs/unicode-segmentation |
 | unicode-width | 0.2.3 | MIT OR Apache-2.0 | Linux, Windows | https://github.com/unicode-rs/unicode-width |
+| untrusted | 0.9.0 | ISC | Linux, Windows | https://github.com/briansmith/untrusted |
+| ureq | 3.5.0 | MIT OR Apache-2.0 | Linux, Windows | https://github.com/algesten/ureq |
+| ureq-proto | 0.6.5 | MIT OR Apache-2.0 | Linux, Windows | https://github.com/algesten/ureq-proto |
+| utf8-zero | 0.8.1 | MIT OR Apache-2.0 | Linux, Windows | https://github.com/algesten/utf8-zero |
 | uuid | 1.29.0 | Apache-2.0 OR MIT | Linux, Windows | https://github.com/uuid-rs/uuid |
 | vello_common | 0.2.0 | Apache-2.0 OR MIT | Linux, Windows | https://github.com/linebender/vello |
 | vello_cpu | 0.2.0 | Apache-2.0 OR MIT | Linux, Windows | https://github.com/linebender/vello |
@@ -202,6 +227,7 @@ each under its own license (identifier shown; full texts are in each crate's sou
 | wayland-scanner | 0.31.11 | MIT | Linux | https://github.com/smithay/wayland-rs |
 | wayland-sys | 0.31.11 | MIT | Linux | https://github.com/smithay/wayland-rs |
 | web-time | 1.1.0 | MIT OR Apache-2.0 | Linux, Windows | https://github.com/daxpedda/web-time |
+| webpki-roots | 1.0.11 | CDLA-Permissive-2.0 | Linux, Windows | https://github.com/rustls/webpki-roots |
 | weezl | 0.1.12 | MIT OR Apache-2.0 | Linux, Windows | https://github.com/image-rs/weezl |
 | wgpu | 30.0.1 | MIT OR Apache-2.0 | Linux, Windows | https://github.com/gfx-rs/wgpu |
 | wgpu-core | 30.0.1 | MIT OR Apache-2.0 | Linux, Windows | https://github.com/gfx-rs/wgpu |
@@ -236,6 +262,7 @@ each under its own license (identifier shown; full texts are in each crate's sou
 | xkeysym | 0.2.1 | MIT OR Apache-2.0 OR Zlib | Linux | https://github.com/notgull/xkeysym |
 | zerocopy | 0.8.63 | BSD-2-Clause OR Apache-2.0 OR MIT | Linux, Windows | https://github.com/google/zerocopy |
 | zerocopy-derive | 0.8.63 | BSD-2-Clause OR Apache-2.0 OR MIT | Linux, Windows | https://github.com/google/zerocopy |
+| zeroize | 1.9.1 | Apache-2.0 OR MIT | Linux, Windows | https://github.com/RustCrypto/utils |
 | zlib-rs | 0.6.8 | Zlib | Linux, Windows | https://github.com/trifectatechfoundation/zlib-rs |
 | zmij | 1.0.23 | MIT | Linux, Windows | https://github.com/dtolnay/zmij |
 | zune-core | 0.5.3 | MIT OR Apache-2.0 OR Zlib | Linux, Windows | https://github.com/etemesi254/zune-image |

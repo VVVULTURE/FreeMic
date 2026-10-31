@@ -16,7 +16,7 @@ BIN=$ROOT/target/release/freemic
 # --- source tarball for the PKGBUILD -----------------------------------------
 SRC=$OUT/src/freemic-$VER
 mkdir -p "$SRC"
-cp -r Cargo.toml Cargo.lock build.rs src tests tools docs packaging LICENSE README.md THIRD-PARTY-NOTICES.md "$SRC/"
+cp -r Cargo.toml Cargo.lock build.rs assets src tests tools docs packaging LICENSE README.md THIRD-PARTY-NOTICES.md "$SRC/"
 # Normalise permissions (a checkout on a Windows drive shows every file as 0777).
 find "$SRC" -type d -exec chmod 755 {} +
 find "$SRC" -type f -exec chmod 644 {} +
@@ -37,6 +37,7 @@ done
 DOC=$PKG/usr/share/doc/freemic
 install -Dm644 README.md "$DOC/README.md"
 install -Dm644 THIRD-PARTY-NOTICES.md "$DOC/THIRD-PARTY-NOTICES.md"
+install -Dm644 assets/fonts/Inter-LICENSE.txt "$DOC/Inter-LICENSE.txt"
 for f in docs/*.md docs/images/*.png; do  # user documentation (the development work log stays out)
   [ "$(basename "$f")" = WORKLOG.md ] || install -Dm644 "$f" "$DOC/$f"
 done
@@ -51,7 +52,8 @@ done
   echo
   echo "Comment: The binary statically includes Rust crates under MIT, Apache-2.0, BSD,"
   echo " Zlib, Unicode, OFL (fonts) and MPL-2.0 (Symphonia) licenses; see"
-  echo " /usr/share/doc/freemic/THIRD-PARTY-NOTICES.md."
+  echo " /usr/share/doc/freemic/THIRD-PARTY-NOTICES.md. The embedded Inter font is"
+  echo " licensed under the SIL Open Font License 1.1: /usr/share/doc/freemic/Inter-LICENSE.txt."
 } > "$DOC/copyright"
 printf 'freemic (%s-1) unstable; urgency=medium\n\n  * Release %s.\n\n -- Vaden <vadenjonas@gmail.com>  %s\n' \
   "$VER" "$VER" "$(date -R)" | gzip -9n > "$DOC/changelog.Debian.gz"
@@ -81,7 +83,7 @@ P=$OUT/freemic-$VER-linux-x86_64
 mkdir -p "$P"
 install -m755 "$BIN" "$P/freemic"
 install -m644 packaging/assets/freemic-256.png "$P/freemic.png"
-install -m644 README.md LICENSE THIRD-PARTY-NOTICES.md "$P/"
+install -m644 README.md LICENSE THIRD-PARTY-NOTICES.md assets/fonts/Inter-LICENSE.txt "$P/"
 for f in docs/*.md docs/images/*.png; do
   [ "$(basename "$f")" = WORKLOG.md ] || install -Dm644 "$f" "$P/$f"
 done

@@ -11,3 +11,4 @@ pub mod logging;
 pub mod paths;
 pub mod platform;
 pub mod ui;
+pub mod youtube;

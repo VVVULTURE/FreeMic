@@ -12,7 +12,7 @@ New-Item -ItemType Directory -Path $stage | Out-Null
 Copy-Item target\release\freemic.exe "$stage\FreeMic.exe"
 Copy-Item packaging\windows\install-vbcable.ps1 $stage
 Copy-Item LICENSE "$stage\LICENSE.txt"
-Copy-Item THIRD-PARTY-NOTICES.md, README.md $stage
+Copy-Item THIRD-PARTY-NOTICES.md, README.md, assets\fonts\Inter-LICENSE.txt $stage
 # User documentation (the development work log stays out)
 New-Item -ItemType Directory -Path "$stage\docs\images" | Out-Null
 Get-ChildItem docs\*.md | Where-Object Name -ne 'WORKLOG.md' | Copy-Item -Destination "$stage\docs"

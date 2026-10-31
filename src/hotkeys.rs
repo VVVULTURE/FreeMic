@@ -55,6 +55,11 @@ impl Hotkeys {
         Hotkeys { manager, registered: Vec::new(), map, unavailable }
     }
 
+    /// No system-wide hotkeys at all (automated tests).
+    pub fn disabled(reason: &str) -> Self {
+        Hotkeys { manager: None, registered: Vec::new(), map: Arc::default(), unavailable: Some(reason.to_string()) }
+    }
+
     /// Register exactly the given bindings. Returns messages for keys that could not be registered.
     pub fn sync(&mut self, bindings: &[(String, Action)]) -> Vec<String> {
         let Some(mgr) = &self.manager else { return Vec::new() };
