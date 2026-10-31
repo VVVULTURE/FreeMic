@@ -137,7 +137,7 @@ file** (`freemic.log`; the previous run's log is kept as `freemic.old.log`).
 
 FreeMic 0.2.0 was flagged by Microsoft Defender as `Trojan:Win32/Bearfoos.B!ml`
 because it downloaded yt-dlp.exe and saved it to disk, which is what malware
-"droppers" do. Version 0.2.1 never downloads or writes program files, runs no
+"droppers" do. On Windows, version 0.2.1 never downloads or writes program files, runs no
 scripts and never asks for administrator rights; see the README section
 "Security and antivirus". If you still had 0.2.0:
 

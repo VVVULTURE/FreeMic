@@ -108,7 +108,7 @@ flagged. 0.1.0, which never downloaded a program, had run on the same PC the
 day before without a detection.
 
 Changes in 0.2.1 (see ARCHITECTURE.md): yt-dlp ships with FreeMic on
-Windows, so FreeMic never downloads, writes or starts program files; no
+Windows, so FreeMic never downloads or writes program files; no
 PowerShell (the VB-CABLE helper is gone); yt-dlp is stopped through a job
 object instead of `taskkill`; version information and an `asInvoker`
 manifest are embedded.
@@ -274,10 +274,10 @@ Debian 13 and Arch.
 
 | Artifact | Where | Steps | Result |
 |---|---|---|---|
-| `.deb` | Debian 13 | `apt-get install ./…deb` → desktop-file-validate → e2e against `/usr/bin/freemic` → default data paths `~/.config/freemic`, `~/.local/share/freemic` → `apt-get remove` → no files left | pass, e2e 28/28 (0.1.0 and 0.2.0) |
-| `.deb` | Debian 12 chroot | install → e2e → remove | pass, e2e 28/28 |
-| PKGBUILD | Arch | `namcap PKGBUILD` → `makepkg` (incl. all tests: 41 in 0.1.0, 55 in 0.2.0) → `namcap` package → `pacman -U` → e2e → data paths → `pacman -R` → no files left | pass, e2e 28/28 (0.1.0 and 0.2.0) |
-| portable `.tar.gz` | Debian 12 chroot (glibc 2.36), Debian 13, Arch | extract → start/quit, data only in `./data`, nothing in `~/.config`/`~/.local/share` → e2e | pass, 28/28 each (0.2.0: Debian 13 and Arch) |
+| `.deb` | Debian 13 | `apt-get install ./…deb` → desktop-file-validate → e2e against `/usr/bin/freemic` → default data paths `~/.config/freemic`, `~/.local/share/freemic` → `apt-get remove` → no files left | pass, e2e 28/28 (0.1.0, 0.2.0, 0.2.1) |
+| `.deb` | Debian 12 chroot | install → e2e → remove | pass, e2e 28/28 (incl. 0.2.1) |
+| PKGBUILD | Arch | `namcap PKGBUILD` → `makepkg` (incl. all tests: 41 in 0.1.0, 55 in 0.2.0, 56 in 0.2.1) → `namcap` package → `pacman -U` → e2e → data paths → `pacman -R` → no files left | pass, e2e 28/28 (0.1.0, 0.2.0, 0.2.1) |
+| portable `.tar.gz` | Debian 12 chroot (glibc 2.36), Debian 13, Arch | extract → start/quit, data only in `./data`, nothing in `~/.config`/`~/.local/share` → e2e | pass, 28/28 each (0.2.0 and 0.2.1: Debian 13 and Arch) |
 
 Linting: `lintian` reports only `initial-upload-closes-no-bugs` (relevant
 only for uploads to the Debian archive). `namcap` reports "may not be

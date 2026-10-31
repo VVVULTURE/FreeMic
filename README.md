@@ -131,19 +131,22 @@ FreeMic 0.2.0 was flagged by Microsoft Defender as `Trojan:Win32/Bearfoos.B!ml`
 yt-dlp program it had downloaded. Since 0.2.1 FreeMic does none of the things
 that look like malware:
 
-- It never downloads, writes or starts program files. On Windows yt-dlp comes
-  with FreeMic; updates are done by yt-dlp's own updater, only when you click
-  **Update yt-dlp**.
+- On Windows it never downloads or writes program files: yt-dlp comes with
+  FreeMic, and updates are done by yt-dlp's own updater, only when you click
+  **Update yt-dlp**. (On Linux, FreeMic downloads the official yt-dlp once,
+  when you set up the YouTube page, and checks its SHA-256 first.)
 - It never runs PowerShell or scripts, never asks for administrator rights
   (its manifest says so), and doesn't download or start driver installers.
 - It installs no keyboard hook and doesn't log keys: hotkeys use the
   standard `RegisterHotKey` (Windows) / X11 key grabs for the combinations you
   set; when one fires, only that key is checked for being released.
-- It only starts yt-dlp (to search and download audio) and, when you click a
-  link, your browser or file manager. It stops yt-dlp with a Windows job
-  object, so it never kills other programs.
-- It connects to GitHub (yt-dlp releases, update checks, only when you use the
-  YouTube page) and to YouTube through yt-dlp. Nothing else, no telemetry.
+- The only programs it starts are yt-dlp (to search and download audio)
+  and, when you click a link or "Open folder", your browser or file manager.
+  It stops yt-dlp with a Windows job object, so it never kills other
+  programs.
+- It connects to GitHub (yt-dlp version checks and, on Linux, its download;
+  only while you use the YouTube page) and to YouTube through yt-dlp.
+  Nothing else, no telemetry.
 
 The 0.2.1 build was scanned with Microsoft Defender and exercised (search,
 download, update) with no detection; see [docs/TESTING.md](docs/TESTING.md).

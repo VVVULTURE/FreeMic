@@ -182,7 +182,7 @@ The **YouTube** page ports the search and download logic of
   fetches the official `yt-dlp.exe` of a release, checks it against that
   release's `SHA2-256SUMS`, and puts it next to `FreeMic.exe` with its
   licenses (`yt-dlp-LICENSE.txt`, `yt-dlp-THIRD_PARTY_LICENSES.txt`,
-  `yt-dlp-SOURCE.txt`). FreeMic.exe never downloads, writes or starts program
+  `yt-dlp-SOURCE.txt`). FreeMic.exe never downloads or writes program
   files of its own: FreeMic 0.2.0 downloaded yt-dlp.exe into its data folder
   and Microsoft Defender flagged FreeMic (`Trojan:Win32/Bearfoos.B!ml`, a
   machine-learning detection) within 0.1 s of it saving that file. The
@@ -244,7 +244,7 @@ The **YouTube** page ports the search and download logic of
 - Network access happens only while the user uses YouTube features
   (GitHub for yt-dlp versions and, on Linux, its download; YouTube through
   yt-dlp). No telemetry.
-- FreeMic.exe never downloads, writes or starts program files, never runs
+- FreeMic.exe never downloads or writes program files, never runs
   PowerShell or scripts, and declares `asInvoker` in its manifest (it never
   asks for administrator rights). The only programs it starts are yt-dlp and,
   when the user clicks a link or "Open folder", the browser / file manager.

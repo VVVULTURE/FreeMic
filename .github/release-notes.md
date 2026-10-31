@@ -5,7 +5,7 @@ detection, not a known virus) and removed it. It reacted the moment FreeMic save
 yt-dlp program it had downloaded: an unknown program that downloads and saves an executable
 looks like a malware "dropper". 0.2.1 removes everything that looks like malware:
 
-- **FreeMic never downloads, writes or starts program files.** On Windows, yt-dlp now comes
+- **On Windows, FreeMic never downloads or writes program files.** yt-dlp now comes
   with FreeMic (the official `yt-dlp.exe`, checked against its published SHA-256 when the
   package is built). **Update yt-dlp** uses yt-dlp's own updater, and only when you click it.
 - **No PowerShell, no scripts, no administrator rights.** The VB-CABLE helper script is gone:
